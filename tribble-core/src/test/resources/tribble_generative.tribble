@@ -3,54 +3,54 @@
 // TODO allow annotating max depth constraints, MinLength, MaxLength
 // TODO add comments and whitespace
 
-Grammar = Production+ ;
-Production = NonTerminal " =" Alternation ";" "\n" ;
-Alternation = Concatenation ( " |" Concatenation )* ;
-Concatenation = (" " Atom)+ ;
-Atom = (
-        "(" Alternation ")" |
+Grammar: Production+ ;
+Production: NonTerminal ':' Alternation ';' '\n' ;
+Alternation: Concatenation ( ' |' Concatenation )* ;
+Concatenation: (' ' Atom)+ ;
+Atom: (
+        '(' Alternation ')' |
         Regex |
         Literal |
         NonTerminal ) Quant? ;
 
-Quant = "?" | "+" | "*" | "{," num "}" | "{" num ",}" | "{" num "," num "}" ;
+Quant: '?' | '+' | '*' | '{,' num '}' | '{' num ',}' | '{' num ',' num '}' ;
 
-num = /0|([1-9][0-9]*)/ ;
-NonTerminal = /[A-Za-z0-9_'$]+/ ;
-Literal = "\"" ( /[^\"\\\\]/ | "\\" /[nrt\"\\\\]/ )* "\"" ;
-Regex = "/" regexp "/";
+num: /0|([1-9][0-9]*)/ ;
+NonTerminal: /[A-Za-z0-9_]+/ ;
+Literal: '\'' ( /[^'\\]/ | '\\' /./ )* '\'' ;
+Regex: '/' regexp '/';
 
 // copied from regex_generative.tribble
 
-regexp  = unionexp;
-unionexp = interexp ( "|" unionexp )?;
-interexp = concatexp ( "&" interexp )?;
-concatexp = repeatexp concatexp?;
+regexp : unionexp;
+unionexp: interexp ( '|' unionexp )?;
+interexp: concatexp ( '&' interexp )?;
+concatexp: repeatexp concatexp?;
 
-repeatexp = complexp "?"
-            | complexp "*"
-            | complexp "+"
-            | complexp "{" num "}"
-            | complexp "{" num ",}"
-            | complexp "{" num "," num2 "}"
+repeatexp: complexp '?'
+            | complexp '*'
+            | complexp '+'
+            | complexp '{' num '}'
+            | complexp '{' num ',}'
+            | complexp '{' num ',' num2 '}'
             | complexp;
 
-complexp = "~"? charclassexp;
+complexp: '~'? charclassexp;
 
-charclassexp = "[" charclasses "]"
-               | "[^" charclasses "]"
+charclassexp: '[' charclasses ']'
+               | '[^' charclasses ']'
                | simpleexp;
 
-charclasses = charclass charclasses?;
-charclass = charexp ("-" charexp)?;
+charclasses: charclass charclasses?;
+charclass: charexp ('-' charexp)?;
 
-simpleexp = charexp
-            | "." // any single character
-            | "\"" (/[^\\\"\)\(]/|"\\\\"|"\\)"|"\\(")+ "\"" // Unicode string without double-quotes
-            | "()" // the empty string
-            | "(" unionexp ")";
+simpleexp: charexp
+            | '.' // any single character
+            | '"' (/[^\\\")(]/|'\\\\'|'\\)'|'\\(')+ '"' // Unicode string without single-quotes
+            | '()' // the empty string
+            | '(' unionexp ')';
 
-charexp = /[^\"\\\/\(\)]/ // a single non-reserved character
-          | "\\" /[\"\\\/\(\)]/; // a single character
+charexp: /[^'\\\/()]/ // a single non-reserved character
+          | '\\' /[\"\\\/()]/; // a single character
 
-num2 = /1[0-9]/;
+num2: /1[0-9]/;

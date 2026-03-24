@@ -5,19 +5,15 @@ import fastparse._
 import fastparse.ScalaWhitespace._
 
 private[tribble] object TextDSLParser extends InputGrammarParser {
-  private def escape[_: P]: P[String] = P("\\" ~~ CharPred("\"\\nrt".contains(_))).!.map(StringContext.treatEscapes)
+  private def escape[_: P]: P[String] = P("\\" ~~ CharIn("'\\\\nrtbf")).!.map(StringContext.treatEscapes)
 
-  private def strChars[_: P]: P[String] = CharsWhile(!"\"\\".contains(_)).!
+  private def terminal[_: P]: P[Literal] = "'" ~~ (escape | CharsWhile(!"'\\".contains(_)).!).repX.map(_.mkString).map(Literal(_)) ~~ "'"
 
-  private def terminal[_: P]: P[Literal] = "\"" ~~ (strChars | escape).repX.map(_.mkString).map(Literal(_)) ~~ "\""
+  private def regexEscape[_: P]: P[String] = P("\\" ~~ AnyChar).!
 
-  private def regexEscape[_: P]: P[String] = escape | ("\\" ~~ CharPred("/()".contains(_)).!)
+  private def regex[_: P]: P[Regex] = P("/" ~~ !"/" ~~ P(regexEscape | CharsWhile(!"/\\".contains(_)).!).repX ~~ "/").map(_.mkString).map(Regex(_))
 
-  private def regex[_: P]: P[Regex] = P("/" ~~ !"/" ~~ P(regexEscape | CharsWhile(!"\"/\\".contains(_)).!).repX ~~ "/")
-    .map(_.mkString)
-    .map(Regex(_))
-
-  private def reference[_: P]: P[Reference] = CharsWhile((('A' to 'Z') ++ ('a' to 'z') ++ ('0' to '9') ++ "_$'").toSet.contains(_)).!.map(Reference(_))
+  private def reference[_: P]: P[Reference] = CharsWhile((('A' to 'Z') ++ ('a' to 'z') ++ ('0' to '9') ++ "_").toSet.contains(_)).!.map(Reference(_))
 
   private def num[_: P]: P[Int] = CharsWhileIn("0-9").!.map(_.toInt)
 

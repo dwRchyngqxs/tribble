@@ -20,14 +20,14 @@ private[tribble] class ModelAssembler(
                                        checkIds: Boolean = true,
                                        assignProbabilities: Boolean = true,
                                        epsilonizeQuantifications: Boolean = false,
-                                       rulesToInline: Array[String] = Array(),
+                                       rulesToInline: Array[String] = new Array(0),
                                      ) {
 
   private val phases = mutable.ListBuffer[AssemblyPhase]()
   private[tribble] def appendPhase(phase: AssemblyPhase): Unit = phases.append(phase)
 
   appendPhase(new AutomatonAssembly(automatonCache))
-  if (!rulesToInline.isEmpty()) appendPhase(new InlineRules(rulesToInline))
+  if (!rulesToInline.isEmpty) appendPhase(new InlineRules(rulesToInline))
   if (transformRegexes) appendPhase(RegexTransformation)
   if (mergeLiterals) appendPhase(LiteralMerge)
   if (checkDuplicateAlternatives) appendPhase(CheckDuplicateAlternatives)
@@ -292,16 +292,16 @@ object LiteralMerge extends AssemblyPhase {
 class InlineRules(rules: Array[String]) extends AssemblyPhase {
   private val ruleSet = rules.toSet
 
-  private def computeDependencies(rule: DerivationRule) = rule match {
-    case r: Reference => Set(r)
-    case Concatenation(elements, _) => concat(elements.flatMap(computeDependencies))
-    case Alternation(alts, _) => concat(alts.flatMap(computeDependencies))
+  private def computeDependencies(rule: DerivationRule): Set[String] = rule match {
+    case Reference(name, _) => Set(name)
+    case Concatenation(elements, _) => elements.map(computeDependencies).reduce(_.union(_))
+    case Alternation(alts, _) => alts.map(computeDependencies).reduce(_.union(_))
     case Quantification(subject, _, _, _) => computeDependencies(subject)
-    case rule: TerminalRule => new Set
+    case rule: TerminalRule => Set()
   }
 
-  private def inlineRule(rule: DerivationRule)(implicit toReplace: String, replacement: DerivationRule) = rule match {
-    case r: Reference if r == toReplace => replacement
+  private def inlineRule(rule: DerivationRule)(implicit toReplace: String, replacement: DerivationRule): DerivationRule = rule match {
+    case Reference(name, _) if name == toReplace => replacement
     case Concatenation(elements, id) => Concatenation(elements.map(inlineRule), id)
     case Alternation(alts, id) => Alternation(alts.map(inlineRule), id)
     case Quantification(subject, min, max, id) => Quantification(inlineRule(subject), min, max, id)
@@ -309,25 +309,25 @@ class InlineRules(rules: Array[String]) extends AssemblyPhase {
   }
 
   override def process(grammar: GrammarRepr): GrammarRepr = {
-    if ruleSet(grammar.start) throw new IllegalArgumentException("Cannot inline starting rule")
-    var deps: mutable.Map[String, Set[String]] = grammar.rules.filterKeys(ruleSet).mapValues(computeDependencies)
-    {
-      val cycles = deps.filter((e, s) => s(e))
-      if !cycles.isEmpty() throw new IllegalArgumentException(s"Rules $cycles.keys() cannot be inlined because they depend on themselves")
-    }
-    var g: mutable.Map[String, DerivationRule] = grammar.rules
+    if (ruleSet(grammar.start)) throw new IllegalArgumentException("Cannot inline starting rule")
+    var deps = mutable.Map[String, Set[String]]()
+    deps ++= grammar.rules.filterKeys(ruleSet).mapValues(computeDependencies)
+    val cycles = deps.filter { case (e, s) => s(e) }
+    if (!cycles.isEmpty) throw new IllegalArgumentException(s"Rules ${cycles.keys} cannot be inlined because they depend on themselves")
+    var g = mutable.Map[String, DerivationRule]()
+    g ++= grammar.rules
     while (!deps.isEmpty) {
-      implicit val toInline = deps.find(_._2.isEmpty()) match {
-        case None => throw new IllegalArgumentException(s"Rules $deps.keys() cannot be inlined because there is a dependency cycle")
+      implicit val toInline = deps.find(_._2.isEmpty) match {
+        case None => throw new IllegalArgumentException(s"Rules ${deps.keys} cannot be inlined because there is a dependency cycle")
         case Some(t) => t._1
       }
       implicit val replacement = g(toInline)
       deps -= toInline
-      deps.mapValuesInPlace(_._2 - toInline)
+      deps.transform((_, v) => v - toInline)
       g -= toInline
-      g.mapValuesInPlace(inlineRule(_._2))
+      g.transform((_, v) => inlineRule(v))
     }
-    GrammarRepr(grammar.start, g)
+    GrammarRepr(grammar.start, Map[String, DerivationRule](g.toSeq: _*))
   }
 }
 

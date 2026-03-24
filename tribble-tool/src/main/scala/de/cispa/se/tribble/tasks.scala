@@ -44,7 +44,7 @@ final class InlineGrammarTask extends Command("inline", "Output grammar with inl
 }
 
 final class ExtractAlternationsTask extends Command("extract-alternations", "Output grammar with all alternations extracted to top level")
-  with Task with CacheModule with OutputModule with GrammarModule {
+  with Task with CacheModule with OutputModule with GrammarOutputModule {
 
   override def execute(): Unit = {
     val extracted = AlternationExtraction.process(grammar)

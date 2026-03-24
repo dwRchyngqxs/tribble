@@ -5,7 +5,7 @@ import java.nio.file.{Files, Path}
 
 import de.cispa.se.tribble.generation._
 import de.cispa.se.tribble.input._
-import de.cispa.se.tribble.output.{ScalaDSLPrettyPrinter, TextPrettyPrinter}
+import de.cispa.se.tribble.output._
 import org.backuity.clist.{Command, arg, opt}
 import org.log4s.getLogger
 
@@ -57,8 +57,8 @@ trait GrammarModule { self: Command =>
   var assignProbabilities: Boolean = opt[Boolean](default = true, name ="no-assign-prob", description = "Do not assign probabilities to derivation rules.")
   var epsilonizeQuantifications: Boolean = opt[Boolean](description = "Turn optional parts of quantifications into alternations.")
   var inlineRules: String = opt[String](name = "inline", default = "", description = "Comma separated list of rules to fully inline.")
-  lazy val rulesToInline: Array[String] = if inlineRules.matches(raw"\A(\w+(,\w+)*)?\z") then inlineRules.split(',') else new Array
-  lazy val modelAssembler: ModelAssembler = new ModelAssembler(automatonCache, damping, similarity, unfoldRegexes, mergeLiterals, cHeckDuplicateAlternatives, checkIds, assignProbabilities, epsilonizeQuantifications, rulesToInline)
+  lazy val rulesToInline: Array[String] = if (inlineRules.matches(raw"\A(\w+(,\w+)*)?\z")) inlineRules.split(',') else new Array[String](0)
+  lazy val modelAssembler: ModelAssembler = new ModelAssembler(automatonCache, damping, similarity, unfoldRegexes, mergeLiterals, checkDuplicateAlternatives, checkIds, assignProbabilities, epsilonizeQuantifications, rulesToInline)
 
   var loadingStrategy: String = opt[String](default = "parse", description = "How to process the grammar file. Valid options are parse, compile, and unmarshal.")
   lazy val loadingStrategyImpl: LoadingStrategy = loadingStrategy match {
@@ -73,14 +73,14 @@ trait GrammarModule { self: Command =>
   lazy val reachability: Reachability = new Reachability(grammar)
 }
 
-trait GrammarOutputModule { self: GrammarModule =>
+trait GrammarOutputModule extends GrammarModule { self: Command =>
   var outputFormat: String = opt[String](default = "scala", name = "output-format", description = """Format to use when printing a grammar file, supported formats are "text" and "scala[-id][-prob]" where parts in brackets are optional.""")
 
   private val scalaPattern = "scala(-id)?(-prob)?".r
   private val textPattern = "text".r
   lazy val prettyPrinter: GrammarPrettyPrinter = outputFormat match {
-    case scalaPattern(printID, printProb) => new ScalaDSLPrettyPrinter(!printID.isEmpty(), !printProb.isEmpty())
-    case textPattern() => TextPrettyPrinter
+    case scalaPattern(printID, printProb) => new ScalaDSLPrettyPrinter(!printID.isEmpty, !printProb.isEmpty)
+    case textPattern() => TextDSLPrettyPrinter
   }
 }
 

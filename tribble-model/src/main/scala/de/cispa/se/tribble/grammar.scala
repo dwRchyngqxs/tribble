@@ -32,7 +32,7 @@ This is only needed to enable smooth interoperability with consumers from Java a
 final case class Reference(name: String, override var id: Int = DEFAULT_ID) extends DerivationRule {
   private[tribble] def this(name: String) = this(name, DEFAULT_ID)
   override def toStream: Stream[DerivationRule] = Stream(this)
-  override def toString: String = s"'$name$id${if(probability.isNaN)""else s"@@$probability"}"
+  override def toString: String = s"'$name$id" + {if (probability.isNaN) "" else s"@@$probability"}
   override var shortestDerivation: Int = Int.MaxValue
   override var probability: Double = Double.NaN
   override def children: Iterable[DerivationRule] = Nil
@@ -42,7 +42,7 @@ final case class Reference(name: String, override var id: Int = DEFAULT_ID) exte
 final case class Concatenation(elements: Seq[DerivationRule], override var id: Int = DEFAULT_ID) extends DerivationRule {
   require(elements.size > 1, s"Concatenations must contain more than one element! (Given $elements)")
   private[tribble] def this(elements: Seq[DerivationRule]) = this(elements, DEFAULT_ID)
-  override def toString: String = s"${elements.mkString("(", " ~ ", s")c$id")}${if(probability.isNaN)""else s"@@$probability"}"
+  override def toString: String = elements.mkString("(", " ~ ", s")c$id") + {if (probability.isNaN) "" else s"@@$probability"}
   override def toStream: Stream[DerivationRule] = this #:: elements.toStream.flatMap(_.toStream)
   override var shortestDerivation: Int = Int.MaxValue
   override var probability: Double = Double.NaN
@@ -55,7 +55,7 @@ final case class Alternation(private val alts: Seq[DerivationRule], override var
   private[tribble] def this(alts: Seq[DerivationRule]) = this(alts, DEFAULT_ID)
   lazy val alternatives: Seq[DerivationRule] = alts.sorted.view.force
   override def equals(obj: Any): Boolean = this.canEqual(obj) && alternatives.equals(obj.asInstanceOf[Alternation].alternatives)
-  override def toString: String = s"${alternatives.mkString("(", " | ", s")a$id")}${if(probability.isNaN)""else s"@@$probability"}"
+  override def toString: String = alternatives.mkString("(", " | ", s")a$id") + {if (probability.isNaN) "" else s"@@$probability"}
   override def toStream: Stream[DerivationRule] = this #:: alternatives.toStream.flatMap(_.toStream)
   override var shortestDerivation: Int = Int.MaxValue
   override var probability: Double = Double.NaN
@@ -71,13 +71,12 @@ final case class Quantification(subject: DerivationRule, min: Int, max: Int, ove
   private[tribble] def this(subject: DerivationRule, min: Int, max: Int) = this(subject, min, max, DEFAULT_ID)
   override def toStream: Stream[DerivationRule] = this #:: subject.toStream
   override def toString: String = {
-    s"($subject)${(min, max) match {
+    s"($subject)" + ((min, max) match {
         case (0, 1) => "?"
         case (0, Int.MaxValue) => "*"
         case (1, Int.MaxValue) => "+"
         case _ => s"{$min,$max}"
-      }
-    }q$id${if(probability.isNaN)""else s"@@$probability"}"
+      }) + s"q$id" + {if (probability.isNaN) "" else s"@@$probability"}
   }
   override var shortestDerivation: Int = Int.MaxValue
   override var probability: Double = Double.NaN
@@ -96,14 +95,16 @@ sealed abstract class TerminalRule extends DerivationRule {
 @SerialVersionUID(7282098018897930204L)
 final case class Literal(value: String, override var id: Int = DEFAULT_ID) extends TerminalRule {
   private[tribble] def this(value: String) = this(value, DEFAULT_ID)
-  override def toString: String = "\"" + value.flatMap {
+  override def toString: String = "'" + value.flatMap {
     case '\n' => "\\n"
     case '\r' => "\\r"
     case '\t' => "\\t"
+    case '\b' => "\\b"
+    case '\f' => "\\f"
     case '\\' => "\\\\"
-    case '"' => "\\\""
+    case '\'' => "\\'"
     case c => c.toString
-  } + s""""$id${if(probability.isNaN)""else s"@@$probability"}"""
+  } + s"'$id" + {if (probability.isNaN) "" else s"@@$probability"}
 }
 
 @SerialVersionUID(-2769895995041560099L)
@@ -117,8 +118,5 @@ final case class Regex(value: String, override var id: Int = DEFAULT_ID) extends
   }
 
   // xxx problem with ~ and & outside of "strings"
-  override def toString: String = "/" + value.flatMap {
-    case '/' => "\\/"
-    case c => c.toString
-  } + s"/$id${if(probability.isNaN)""else s"@@$probability"}"
+  override def toString: String = s"/$value/$id" + {if (probability.isNaN) "" else s"@@$probability"}
 }

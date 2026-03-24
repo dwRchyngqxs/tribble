@@ -1,25 +1,25 @@
 // Clojure grammar translated from https://github.com/antlr/grammars-v4/blob/master/clojure/Clojure.g4
 
-file = (form ws)+ ;
+file: (form ws)+ ;
 
-form = literal
+form: literal
      | list
      | vector
      | map
      | reader_macro
      ;
 
-forms = (form ws)* ;
+forms: (form ws)* ;
 
-list = "(" forms ")" ;
+list: '(' forms ')' ;
 
-vector = "[" forms "]" ;
+vector: '[' forms ']' ;
 
-map = "{" (form ws form)* "}" ;
+map: '{' (form ws form)* '}' ;
 
-set = "#{" forms "}" ;
+set: '#{' forms '}' ;
 
-reader_macro = lambda
+reader_macro: lambda
              | meta_data
              | regex
              | var_quote
@@ -36,36 +36,36 @@ reader_macro = lambda
              | gensym
              ;
 
-// TJP added "&" (gather a variable number of arguments)
-quote = "'" form ;
+// TJP added '&' (gather a variable number of arguments)
+quote: '\'' form ;
 
-backtick = "`" form ;
+backtick: '`' form ;
 
-unquote = "~" form ;
+unquote: '~' form ;
 
-unquote_splicing = "~@" form ;
+unquote_splicing: '~@' form ;
 
-tag = "^" form ws form ;
+tag: '^' form ws form ;
 
-deref = "@" form ;
+deref: '@' form ;
 
-gensym = symbol "#" ;
+gensym: symbol '#' ;
 
-lambda = "#(" form* ")" ;
+lambda: '#(' form* ')' ;
 
-meta_data = "#^" (map ws form | form) ;
+meta_data: '#^' (map ws form | form) ;
 
-var_quote = "#'" symbol ;
+var_quote: '#\'' symbol ;
 
-host_expr = "#+" form ws form ;
+host_expr: '#+' form ws form ;
 
-discard = "#_" form ;
+discard: '#_' form ;
 
-dispatch = "#" symbol ws form ;
+dispatch: '#' symbol ws form ;
 
-regex = "#" string ; // TODO might want to refine this
+regex: '#' string ; // TODO might want to refine this
 
-literal = string
+literal: string
         | number
         | character
         | nil
@@ -75,77 +75,77 @@ literal = string
         | param_name
         ;
 
-number = float
+number: float
        | hex
        | bin
        | bign
        | long
        ;
 
-character = char_named
+character: char_named
           | char_u
           | char_any
           ;
 
 
-keyword = macro_keyword | simple_keyword;
-simple_keyword = ":" symbol;
-macro_keyword = "::" symbol;
+keyword: macro_keyword | simple_keyword;
+simple_keyword: ':' symbol;
+macro_keyword: '::' symbol;
 
-symbol = ns_symbol | symbol | "." | "/" | name;
+symbol: ns_symbol | symbol | '.' | '/' | name;
 
 // Lexers
 //--------------------------------------------------------------------
 
-string  = "\"" ( /[^\"]/ | "\\\"" )* "\"" ;
+string : '"' ( /[^"]/ | '\\"' )* '"' ;
 
 // FIXME: Doesn't deal with arbitrary read radixes, BigNums
-float = "-"? /[0-9]+/ float_tail
-      | "-"? "Infinity"
-      | "-"? "NaN"
+float: '-'? /[0-9]+/ float_tail
+      | '-'? 'Infinity'
+      | '-'? 'NaN'
       ;
 
-float_tail = float_decimal float_exp
+float_tail: float_decimal float_exp
            | float_decimal
            | float_exp
            ;
 
-float_decimal = "." /[0-9]+/ ;
+float_decimal: '.' /[0-9]+/ ;
 
-float_exp = ("e" | "E") "-"? /[0-9]+/ ;
+float_exp: ('e' | 'E') '-'? /[0-9]+/ ;
 
-hexd = /[0-9a-fA-F]/ ;
-hex = "0" ("x" | "X") hexd+ ;
-bin = "0" ("b" | "B") ("1" | "0")+ ;
-long = "-"? /[0-9]+/ ("l" | "L")? ;
-bign = "-"? /[0-9]+/ ("n" | "N") ;
+hexd: /[0-9a-fA-F]/ ;
+hex: '0' ('x' | 'X') hexd+ ;
+bin: '0' ('b' | 'B') ('1' | '0')+ ;
+long: '-'? /[0-9]+/ ('l' | 'L')? ;
+bign: '-'? /[0-9]+/ ('n' | 'N') ;
 
-char_u = "\\" "u" /[0-9D-Fd-f]/ hexd{3};
-char_named = "\\" ( "newline"
-           | "return"
-           | "space"
-           | "tab"
-           | "formfeed"
-           | "backspace" ) ;
-char_any = "\\" /./ ;
+char_u: '\\' 'u' /[0-9D-Fd-f]/ hexd{3};
+char_named: '\\' ( 'newline'
+           | 'return'
+           | 'space'
+           | 'tab'
+           | 'formfeed'
+           | 'backspace' ) ;
+char_any: '\\' /./ ;
 
-nil  = "nil";
+nil : 'nil';
 
-boolean  = "true" | "false" ;
+boolean : 'true' | 'false' ;
 
-ns_symbol = name "/" symbol ;
+ns_symbol: name '/' symbol ;
 
-param_name = "%" ((/[1-9][0-9]*/)|"&")? ;
+param_name: '%' ((/[1-9][0-9]*/)|'&')? ;
 
 // Fragments
 //--------------------------------------------------------------------
 
 
-name = symbol_head symbol_rest* (":" symbol_rest+)* ;
+name: symbol_head symbol_rest* (':' symbol_rest+)* ;
 
 
-symbol_head = /~(]|[|[0-9]|[`'\"\/:@#%(){} \n\r\t,~])/ ;
+symbol_head: /~(]|\[|[0-9]|[`'"\/:@#%(){} \n\r\t,~])/ ;
 
-symbol_rest = symbol_head | /[0-9]/ | "." ;
+symbol_rest: symbol_head | /[0-9]/ | '.' ;
 
-ws = /[ \n\r\t,]/;
+ws: /[ \n\r\t,]/;
