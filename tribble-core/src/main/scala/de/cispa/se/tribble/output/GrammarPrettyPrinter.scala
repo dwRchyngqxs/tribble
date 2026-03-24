@@ -1,67 +1,74 @@
 package de.cispa.se.tribble
 package output
 
-class GrammarPrettyPrinter(private val grammar: GrammarRepr) {
+trait class GrammarPrettyPrinter {
+  def apply(grammar: GrammarRepr): String
+  def apply(rule: DerivationRule): String
+}
 
-  def prettyPrint(printID: Boolean = false, printProb: Boolean = false): String = {
-    val builder = new StringBuilder("Grammar(\n")
-    for ((terminal, rule) <- grammar.rules) {
-      builder.append(s"'$terminal := ")
-      builder.append(print(rule, printID, printProb))
-      builder.append(",\n")
-    }
-    builder.replace(builder.length - 2, builder.length, "\n)\n")
-    builder.mkString
-  }
+class ScalaDSLPrettyPrinter(printID: Boolean = false, printProb: Boolean = false) extends GrammarPrettyPrinter {
+  override def apply(grammar: GrammarRepr): String =
+    "Grammar(\n"
+      + grammar.rules.iterator.map((name, rule) => s"'$name := " + apply(rule)).mkString(",\n")
+      + "\n)\n"
 
-  private def print(rule: DerivationRule, printID: Boolean, printProb: Boolean): String = {
-    var res = rule match {
+  override def apply(rule: DerivationRule): String = {
+    var builder = new StringBuilder()
+    rule match {
       case Reference(name, id) =>
-        var res = s"'$name"
-        if (printID) {
-          res += appendId(id)
-        }
-        res
-      case Concatenation(elements, id) => recurseElements(elements, " ~ ", printID, printProb) + appendId(id)
-      case a: Alternation => recurseElements(a.alternatives, " | ", printID, printProb) + appendId(a.id)
-      case Quantification(subject, min, max, id) => s"${print(subject, printID, printProb)}${
-        (min, max) match {
+        builer += s"'$name"
+        appendId(builder, id)
+      case Concatenation(elements, id) =>
+        builder += "("
+        builder += elements.map(apply).mkString(" ~ ")
+        builder += ")"
+        appendId(builder, id)
+      case Alternation(alts, id) =>
+        builder += "("
+        builder += alts.map(apply).mkString(" | ")
+        builder += ")"
+        appendId(builder, id)
+      case Quantification(subject, min, max, id) =>
+        builder += "("
+        builder += apply(subject)
+        builder += ")"
+        builder += (min, max) match {
           case (0, 1) => ".?"
           case (0, Int.MaxValue) => ".rep"
           case (1, Int.MaxValue) => ".rep(1)"
           case _ => s".rep($min,$max)"
-        }
-      }" + appendId(id)
+        })
+        appendId(builder, id)
       case Literal(value, id) =>
-        var res = fastparse.internal.Util.literalize(value, unicode = true)
-        if (printID) {
-          res += appendId(id)
-        }
-        res
+        builder += fastparse.internal.Util.literalize(value, unicode = true)
+        appendId(builder, id)
       case Regex(value, id) =>
-        var res = fastparse.internal.Util.literalize(value, unicode = true) + ".regex"
-        if (printID) {
-          res += appendId(id)
-        }
-        res
+        builder += fastparse.internal.Util.literalize(value, unicode = true)
+        builder += ".regex"
+        appendId(builder, id)
     }
-    if (printProb) {
-      res += probability(rule)
-    }
-    res
+    if (printProb && !rule.probability.isNaN) builder.append(s" @@ ${rule.probability}")
+    builder.toString
   }
 
-  private def recurseElements(elements: Seq[DerivationRule], separator: String, printID: Boolean, printProb: Boolean) = {
-    val builder = new StringBuilder("(")
-    for (elem <- elements) {
-      builder.append(print(elem, printID, printProb))
-      builder.append(separator)
-    }
-    builder.replace(builder.length - separator.length, builder.length, ")")
-    builder.mkString
+  private def appendId(builder: StringBuilder, id: Int): Unit = if (printID && id != 0) builder += s"/*@$id*/"
+}
+
+object TextPrettyPrinter {
+  override def apply(grammar: GrammarRepr): String =
+    grammar.rules.iterator.map((name, rule) => s"$name: " + apply(rule) + ";\n").mkString()
+  override def apply(rule: DerivationRule): String = rule match {
+    case Reference(name, _) => name
+    case Concatenation(elements, _) => "(" + elements.map(apply).mkString(" ") + ")"
+    case Alternation(alts, _) => "(" + alts.map(apply).mkString(" | ") + ")"
+    case Quantification(subject, min, max, _) =>
+      apply(subject) + (min, max) match {
+        case (0, 1) => "?"
+        case (0, Int.MaxValue) => "*"
+        case (1, Int.MaxValue) => "+"
+        case _ => s"{$min,$max}"
+      }
+    case Literal(value, _) => fastparse.internal.Util.literalize(value, unicode = true)
+    case Regex(value, _) => "/" + fastparse.internal.Util.literalize(value, unicode = true) + "/"
   }
-
-  private def appendId(id: Int): String = if (id != 0) s"/*@$id*/" else ""
-
-  private def probability(rule: DerivationRule): String = if (rule.probability.isNaN) "" else s" @@ ${rule.probability}"
 }

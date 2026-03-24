@@ -5,7 +5,6 @@ import java.nio.file.Files
 
 import de.cispa.se.tribble.Internal._
 import de.cispa.se.tribble.input.{AlternationExtraction, ObjectStreamGrammarCache, RuleInlining}
-import de.cispa.se.tribble.output.GrammarPrettyPrinter
 import org.backuity.clist.{Command, opt}
 import org.log4s.getLogger
 
@@ -34,12 +33,12 @@ final class GenerateTask extends Command("generate", "Generate sample inputs")
 }
 
 final class InlineGrammarTask extends Command("inline", "Output grammar with inlined productions")
-  with Task with CacheModule with OutputModule with GrammarModule {
+  with Task with CacheModule with OutputModule with GrammarOutputModule {
   var inlineLevels: Int = opt[Int](description = "How many times to perform inlining. Default 1", default = 1)
 
   override def execute(): Unit = {
     val inlined = new RuleInlining(inlineLevels).process(grammar)
-    val serialized = new GrammarPrettyPrinter(inlined).prettyPrint()
+    val serialized = prettyPrinter(inlined)
     Files.write(Files.createFile(outputDir.resolve(grammarFile.getName)), serialized.getBytes(StandardCharsets.UTF_8))
   }
 }
@@ -49,8 +48,25 @@ final class ExtractAlternationsTask extends Command("extract-alternations", "Out
 
   override def execute(): Unit = {
     val extracted = AlternationExtraction.process(grammar)
-    val serialized = new GrammarPrettyPrinter(extracted).prettyPrint()
+    val serialized = prettyPrinter(extracted)
     Files.write(Files.createFile(outputDir.resolve(grammarFile.getName)), serialized.getBytes(StandardCharsets.UTF_8))
+  }
+}
+
+final class MutateGrammarTask extends Command("mutate-grammar", "Mutate grammar and generate discriminating derivation trees")
+  with Task with OutputModule with CacheModule with GrammarOutputModule {
+  var mutationCount: Int = opt[Int](default = 1, description = "How many mutations to perform.")
+  // kpath
+  // mutations to disable???
+
+  // TODO
+  private def mutateGrammar(): (GrammarRepr, Seq[(String, Int)]) = {
+    (grammar, Seq())
+  }
+
+  override def execute(): Unit = {
+    val (newGrammar, _) = mutateGrammar(grammar)
+    Files.write(Files.createFile(outputDir.resolve(grammarFile.getName)), prettyPrinter(newGrammar).getBytes(StandardCharsets.UTF_8))
   }
 }
 

@@ -51,7 +51,7 @@ private[tribble] object TextDSLParser extends InputGrammarParser {
 
   private def alternation[_: P]: P[DerivationRule] = concatenation.rep(min = 1, sep = "|"./).map(_.distinct).map { case Seq(e) => e case seq => Alternation(seq) }
 
-  private def production[_: P]: P[Production] = P(reference ~ "=" ~/ alternation ~ ";").map { case (Reference(name, _), rhs) => name -> rhs }
+  private def production[_: P]: P[Production] = P(reference ~ ":" ~/ alternation ~ ";").map { case (Reference(name, _), rhs) => name -> rhs }
 
   override def grammar[_: P]: P[Seq[Production]] = P(Start ~ production.rep(1) ~ End)
 }

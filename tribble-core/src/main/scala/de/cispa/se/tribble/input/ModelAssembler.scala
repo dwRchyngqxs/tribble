@@ -20,12 +20,14 @@ private[tribble] class ModelAssembler(
                                        checkIds: Boolean = true,
                                        assignProbabilities: Boolean = true,
                                        epsilonizeQuantifications: Boolean = false,
+                                       rulesToInline: Array[String] = Array(),
                                      ) {
 
   private val phases = mutable.ListBuffer[AssemblyPhase]()
   private[tribble] def appendPhase(phase: AssemblyPhase): Unit = phases.append(phase)
 
   appendPhase(new AutomatonAssembly(automatonCache))
+  if (!rulesToInline.isEmpty()) appendPhase(new InlineRules(rulesToInline))
   if (transformRegexes) appendPhase(RegexTransformation)
   if (mergeLiterals) appendPhase(LiteralMerge)
   if (checkDuplicateAlternatives) appendPhase(CheckDuplicateAlternatives)
@@ -284,6 +286,48 @@ object LiteralMerge extends AssemblyPhase {
 
     logger.info(s"Merged ${merges.value} literals${if (removed > 0) s" (and removed $removed productions in the process)" else ""}")
     g
+  }
+}
+
+class InlineRules(rules: Array[String]) extends AssemblyPhase {
+  private val ruleSet = rules.toSet
+
+  private def computeDependencies(rule: DerivationRule) = rule match {
+    case r: Reference => Set(r)
+    case Concatenation(elements, _) => concat(elements.flatMap(computeDependencies))
+    case Alternation(alts, _) => concat(alts.flatMap(computeDependencies))
+    case Quantification(subject, _, _, _) => computeDependencies(subject)
+    case rule: TerminalRule => new Set
+  }
+
+  private def inlineRule(rule: DerivationRule)(implicit toReplace: String, replacement: DerivationRule) = rule match {
+    case r: Reference if r == toReplace => replacement
+    case Concatenation(elements, id) => Concatenation(elements.map(inlineRule), id)
+    case Alternation(alts, id) => Alternation(alts.map(inlineRule), id)
+    case Quantification(subject, min, max, id) => Quantification(inlineRule(subject), min, max, id)
+    case _ => rule
+  }
+
+  override def process(grammar: GrammarRepr): GrammarRepr = {
+    if ruleSet(grammar.start) throw new IllegalArgumentException("Cannot inline starting rule")
+    var deps: mutable.Map[String, Set[String]] = grammar.rules.filterKeys(ruleSet).mapValues(computeDependencies)
+    {
+      val cycles = deps.filter((e, s) => s(e))
+      if !cycles.isEmpty() throw new IllegalArgumentException(s"Rules $cycles.keys() cannot be inlined because they depend on themselves")
+    }
+    var g: mutable.Map[String, DerivationRule] = grammar.rules
+    while (!deps.isEmpty) {
+      implicit val toInline = deps.find(_._2.isEmpty()) match {
+        case None => throw new IllegalArgumentException(s"Rules $deps.keys() cannot be inlined because there is a dependency cycle")
+        case Some(t) => t._1
+      }
+      implicit val replacement = g(toInline)
+      deps -= toInline
+      deps.mapValuesInPlace(_._2 - toInline)
+      g -= toInline
+      g.mapValuesInPlace(inlineRule(_._2))
+    }
+    GrammarRepr(grammar.start, g)
   }
 }
 
