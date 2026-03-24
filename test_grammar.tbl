@@ -1,0 +1,13 @@
+start: prog*;
+prog: '{\n' line* '}\n';
+line: '\t' stmt ';\n';
+stmt: procname '(' expr ')' | var ' <- ' expr;
+procname: 'print' | 'wait';
+var: /[a-z]+/;
+expr: binexpr | expr ass0binop binexpr;
+binexpr: primary | primary ass1binop binexpr;
+primary: unop primary | '(' expr ')' | literal;
+ass0binop: ' + ' | ' - ';
+ass1binop: '*' | '/';
+unop: '+' | '-' | '!' | '~';
+literal: /[0-9]+/;
