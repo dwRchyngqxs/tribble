@@ -1,0 +1,7 @@
+ignore: (/[ \t\n]/+ | ' //' /[\t -~]/* '\n')+;
+procname: 'print' | 'wait';
+var: /[a-z]+/;
+ass0binop: '+' | '-';
+ass1binop: '*' | '/';
+unop: '+' | '-' | '!' | '~';
+literal: /[0-9]+/;

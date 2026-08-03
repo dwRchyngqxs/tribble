@@ -1,0 +1,11 @@
+TODO: standalone build
+
+Test k-path through path quantification changes (print k-path?)
+
+Allow multiple start rules (start is then all unused rules instead of a single one) (put connectedness check behind a flag)
+
+uniform mutation only on reachable rules
+
+Implement grammar rule mutations (replication is unlikely to be the correct choice)
+differential input generation by well chosen k-path through interesting part of mutated rule
+test k-path through rule

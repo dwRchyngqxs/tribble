@@ -1,0 +1,7 @@
+start: prog+;
+prog: '{' line* '}';
+line: stmt ';';
+stmt: procname '(' expr? ')' | var '<-' expr | 'for' var '<-' (expr ','){2,3} prog;
+expr: binexpr | expr ass0binop binexpr;
+binexpr: primary | primary ass1binop binexpr;
+primary: unop primary | '(' expr ')' | literal;
