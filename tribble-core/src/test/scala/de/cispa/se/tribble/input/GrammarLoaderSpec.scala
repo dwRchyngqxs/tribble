@@ -5,7 +5,7 @@ import java.io.File
 
 class GrammarLoaderSpec extends TestSpecification with SharedModelAssembler {
 
-  private val loader = new GrammarLoader(ParseGrammar(modelAssembler), EmptyGrammarCache)
+  private val loader = new GrammarLoader(ParseGrammar, EmptyGrammarCache)
 
   "The GrammarLoader" should "be able to load a valid grammar" in {
     val grammars = Table("path",
@@ -20,13 +20,14 @@ class GrammarLoaderSpec extends TestSpecification with SharedModelAssembler {
     )
 
     forAll(grammars) { name =>
-      val grammar = loader.loadGrammar(new File(s"src/test/resources/typesafe/$name.scala"))
+      val grammar = loader.loadGrammar(new File(s"tribble-core/src/test/resources/typesafe/$name.scala"))
+      modelAssembler.assemble(grammar)
     }
   }
 
   it should "not compile empty grammars" in {
     assertThrows[IllegalArgumentException] {
-      loader.loadGrammar(new File("src/test/resources/typesafe/Empty.scala"))
+      loader.loadGrammar(new File("tribble-core/src/test/resources/typesafe/Empty.scala"))
     }
   }
 }

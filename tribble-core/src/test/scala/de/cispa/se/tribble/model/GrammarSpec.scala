@@ -6,7 +6,7 @@ import de.cispa.se.tribble.TestDSL._
 
 class GrammarSpec extends TestSpecification {
 
-  private val grammar: GrammarRepr = GrammarRepr("A", Map('A := 'B, 'B := "b"))
+  private val grammar: GrammarRepr = GrammarRepr("A", "ignore", Map('A := 'B, 'B := "b"))
 
   "The Grammar" should "be usable like a map" in {
     val b: Reference = 'B

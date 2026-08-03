@@ -11,7 +11,7 @@ trait ForestGenerator {
 }
 
 class ForestAdapter(treeGenerator: TreeGenerator, n: Int)(implicit grammar: GrammarRepr) extends ForestGenerator {
-  override def generateForest(): Stream[DTree] = Stream.continually(treeGenerator.generate).take(n)
+  override def generateForest(): Stream[DTree] = Stream.continually(treeGenerator.generate(grammar)).take(n)
 }
 
 class ForestSizeLimiter(generator: ForestGenerator, n: Int) extends ForestGenerator {
@@ -27,7 +27,7 @@ class ForestTimeLimiter(generator: ForestGenerator, minutes: Int) extends Forest
 }
 
 class ContinuingForestAdapter(generator: ForestGenerator, treeGenerator: TreeGenerator, n: Int)(implicit grammar: GrammarRepr) extends ForestGenerator {
-  override def generateForest(): Iterable[DTree] = (generator.generateForest().iterator ++ Iterator.continually(treeGenerator.generate)).toStream.take(n)
+  override def generateForest(): Iterable[DTree] = (generator.generateForest().iterator ++ Iterator.continually(treeGenerator.generate(grammar))).toStream.take(n)
 }
 
 class SizedForestAdapter(min: Int, max: Int, n: Int, heuristic: Heuristic, maxRepetitions: Int)(implicit grammar: GrammarRepr, random: Random, shortestTreeGenerator: ShortestTreeGenerator) extends ForestGenerator {
@@ -40,7 +40,7 @@ class SizedForestAdapter(min: Int, max: Int, n: Int, heuristic: Heuristic, maxRe
 
     while (result.size < n) {
       val generator = new SizedTreeGenerator(maxRepetitions, random, shortestTreeGenerator, size, heuristic)
-      val tree = generator.generate
+      val tree = generator.generate(grammar)
       val treeSize = tree.size()
       if (treeSize < min) {
         size += 1

@@ -11,8 +11,8 @@ import org.scalatest.prop.{TableFor1, TableFor2}
 
 class KPathEvaluatorSpec extends TestSpecification with SharedModelAssembler with StructuralDerivationRuleEquality {
 
-  private val loader = new GrammarLoader(ParseGrammar(modelAssembler), EmptyGrammarCache)
-  private val grammar: GrammarRepr = loader.loadGrammar(new File("src/test/resources/typesafe/Expr.scala"))
+  private val loader = new GrammarLoader(ParseGrammar, EmptyGrammarCache)
+  private val grammar: GrammarRepr = modelAssembler.assemble(loader.loadGrammar(new File("src/test/resources/typesafe/Expr.scala")))
   private val tracker = new ParentTracker(grammar)
 
   private val evaluator = new KPathEvaluator(tracker)

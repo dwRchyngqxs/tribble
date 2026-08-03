@@ -14,7 +14,7 @@ class KPathGeneratorSpec extends TestSpecification with SharedModelAssembler {
       'A := 'B,
       'B := "b"
     )
-    implicit val grammar: GrammarRepr = modelAssembler.assemble(g.productions)
+    implicit val grammar: GrammarRepr = assemble(g)
     implicit val reachability: Reachability = new Reachability(grammar)
     implicit val random: Random = new Random(42)
 

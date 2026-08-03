@@ -1,6 +1,13 @@
 package de.cispa.se.tribble
 package output
 
+object Precedence extends Enumeration {
+  type Precedence = Value
+  val PAlternation, PConcatenation, PQuantifier, PAtom = Value
+}
+
+import Precedence._
+
 trait GrammarPrettyPrinter {
   def apply(grammar: GrammarRepr): String
   def apply(rule: DerivationRule): String
@@ -54,20 +61,32 @@ class ScalaDSLPrettyPrinter(printID: Boolean = false, printProb: Boolean = false
 
 object TextDSLPrettyPrinter extends GrammarPrettyPrinter {
   override def apply(grammar: GrammarRepr): String =
-    grammar.rules.iterator.map { case (name, rule) => s"$name: " + apply(rule) + ";\n" }.mkString
-  override def apply(rule: DerivationRule): String = rule match {
+    grammar.rules.iterator.map { case (name, rule) => s"$name: " + apply(rule, PAlternation) + ";\n" }.mkString
+
+  override def apply(rule: DerivationRule): String = apply(rule, PAlternation)
+
+  def apply(rule: DerivationRule, prec: Precedence = PAlternation): String = rule match {
     case Reference(name, _) => name
-    case Concatenation(elements, _) => "(" + elements.map(apply).mkString(" ") + ")"
-    case Alternation(alts, _) => "(" + alts.map(apply).mkString(" | ") + ")"
-    case Quantification(subject, min, max, _) =>
-      apply(subject) + ((min, max) match {
+    case Concatenation(elements, _) => {
+      val x = elements.map(apply(_, PQuantifier)).mkString(" ")
+      if (prec > PConcatenation) s"($x)" else x
+    }
+    case Alternation(alts, _) => {
+      val x = alts.map(apply(_, PConcatenation)).mkString(" | ")
+      if (prec > PAlternation) s"($x)" else x
+    }
+    case Quantification(subject, min, max, _) => {
+      val x = apply(subject, PAtom)
+      val q = (min, max) match {
         case (0, 1) => "?"
         case (0, Int.MaxValue) => "*"
         case (1, Int.MaxValue) => "+"
         case _ => s"{$min,$max}"
-      })
-    case Literal(value, _) =>
-      "'" + value.flatMap {
+      }
+      if (prec > PQuantifier) s"($x)$q" else s"$x$q"
+    }
+    case Literal(value, _) => {
+      val x = value.flatMap {
         case '\n' => "\\n"
         case '\r' => "\\r"
         case '\t' => "\\t"
@@ -76,7 +95,19 @@ object TextDSLPrettyPrinter extends GrammarPrettyPrinter {
         case '\\' => "\\\\"
         case '\'' => "\\'"
         case c => c.toString
-      } + "'"
-    case Regex(value, _) => "/" + value + "/"
+      }
+      s"'$x'"
+    }
+    case Regex(value, _) => {
+      val x = value.flatMap {
+        case '\n' => "\\n"
+        case '\r' => "\\r"
+        case '\t' => "\\t"
+        case '\b' => "\\b"
+        case '\f' => "\\f"
+        case c => c.toString
+      }
+      s"/$x/"
+    }
   }
 }

@@ -8,9 +8,9 @@ import org.log4s.getLogger
 
 
 trait GrammarCache {
-  def loadGrammar(grammarHash: String): Option[GrammarRepr]
+  def loadGrammar(grammarHash: String): Option[Map[NonTerminal, DerivationRule]]
 
-  def storeGrammar(grammar: GrammarRepr, grammarHash: String): Unit
+  def storeGrammar(rules: Map[NonTerminal, DerivationRule], grammarHash: String): Unit
 }
 
 /**
@@ -21,7 +21,7 @@ private[tribble] class ObjectStreamGrammarCache(private val storageDir: File) ex
   require(storageDir.exists(), "The grammar cache directory must exist!")
   private val logger = getLogger
 
-  override def loadGrammar(grammarHash: String): Option[GrammarRepr] = {
+  override def loadGrammar(grammarHash: String): Option[Map[NonTerminal, DerivationRule]] = {
     require(grammarHash != null, "The grammar hash must not be null!")
     require(grammarHash.nonEmpty, "The grammar hash must not be empty!")
 
@@ -42,7 +42,7 @@ private[tribble] class ObjectStreamGrammarCache(private val storageDir: File) ex
     }
   }
 
-  override def storeGrammar(grammar: GrammarRepr, grammarHash: String): Unit = {
+  override def storeGrammar(rules: Map[NonTerminal, DerivationRule], grammarHash: String): Unit = {
     require(grammarHash != null, "The grammar hash must not be null!")
     require(grammarHash.nonEmpty, "The grammar hash must not be empty!")
 
@@ -50,13 +50,13 @@ private[tribble] class ObjectStreamGrammarCache(private val storageDir: File) ex
     if (file.exists()) {
       logger.warn("Overriding grammar cache file!")
     }
-    serializeGrammar(grammar, file)
+    serializeGrammar(rules, file)
     logger.info(s"Stored grammar cache to $file")
   }
 }
 
 object EmptyGrammarCache extends GrammarCache {
-  override def loadGrammar(grammarHash: String): Option[GrammarRepr] = None
+  override def loadGrammar(grammarHash: String): Option[Map[NonTerminal, DerivationRule]] = None
 
-  override def storeGrammar(grammar: GrammarRepr, grammarHash: String): Unit = ()
+  override def storeGrammar(rules: Map[NonTerminal, DerivationRule], grammarHash: String): Unit = ()
 }

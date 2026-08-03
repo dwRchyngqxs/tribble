@@ -16,7 +16,7 @@ class ParentTrackerSpec extends TestSpecification with SharedNoIdModelAssembler 
     'F := "f"
   )
 
-  private val grammar: GrammarRepr = modelAssembler.assemble(g.productions)
+  private val grammar: GrammarRepr = assemble(g)
 
   private val tracker = new ParentTracker(grammar)
 

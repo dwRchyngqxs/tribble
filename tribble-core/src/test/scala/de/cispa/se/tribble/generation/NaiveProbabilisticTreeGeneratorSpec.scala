@@ -94,8 +94,7 @@ class NaiveProbabilisticTreeGeneratorSpec extends TestSpecification with ScalaCh
 
   private def checkRanges(grammars: TableFor2[Grammar, Spread[Int]], assembler: ModelAssembler) = {
     forAll(grammars) { (g, spread) =>
-      implicit val grammar: GrammarRepr = assembler.assemble(g.productions)
-      implicit def arbTree: Arbitrary[DTree] = Arbitrary(treeGenerator.generate)
+      implicit def arbTree: Arbitrary[DTree] = Arbitrary(treeGenerator.generate(assembler.assemble(ModelAssembler.makeMap(g.productions))))
 
       forAll { (t: DTree) =>
         whenever(t.isRoot) {

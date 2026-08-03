@@ -31,20 +31,16 @@ class GrammarCacheSpec extends TestSpecification with SharedModelAssembler with 
       "Regex",
     )
 
-    val loader = new GrammarLoader(ParseGrammar(modelAssembler), EmptyGrammarCache)
+    val loader = new GrammarLoader(ParseGrammar, EmptyGrammarCache)
 
     forAll(grammars) { name =>
-      val grammar: GrammarRepr = loader.loadGrammar(new File(s"src/test/resources/typesafe/$name.scala"))
+      val grammar: Map[NonTerminal, DerivationRule] = loader.loadGrammar(new File(s"tribble-core/src/test/resources/typesafe/$name.scala"))
 
       cache.storeGrammar(grammar, name)
-      val loaded: Option[GrammarRepr] = cache.loadGrammar(name)
+      val loaded: Option[Map[NonTerminal, DerivationRule]] = cache.loadGrammar(name)
 
       loaded match {
         case Some(loadedGrammar) =>
-          val loadedRoot = loadedGrammar.root
-          val root = grammar.root
-
-          loadedRoot.shortestDerivation shouldEqual root.shortestDerivation
           loadedGrammar shouldEqual grammar
         case None =>
           fail(s"Could not load grammar $name")

@@ -13,7 +13,7 @@ class AlternationExtractionSpec extends TestSpecification with SharedNoIdModelAs
       'C := "c1" | "c2" ~ ("c3" | "c4"),
       'D := "d1" | "d2"
     )
-    val grammar: GrammarRepr = modelAssembler.assemble(g.productions)
+    val grammar: GrammarRepr = assemble(g)
 
     val extracted: GrammarRepr = AlternationExtraction.process(grammar)
 
@@ -30,7 +30,7 @@ class AlternationExtractionSpec extends TestSpecification with SharedNoIdModelAs
       'D := "d1" | "d2"
     )
 
-    val expected: GrammarRepr = modelAssembler.assemble(eG.productions)
+    val expected: GrammarRepr = assemble(eG)
 
     extracted shouldEqual expected
   }
@@ -44,7 +44,7 @@ class AlternationExtractionSpec extends TestSpecification with SharedNoIdModelAs
       'A := Alternation(Seq("a1", Alternation(Seq("a2", Alternation(Seq("a3", 'B)))))),
       'B := "b1"
     )
-    val grammar: GrammarRepr = modelAssembler.assemble(g.productions)
+    val grammar: GrammarRepr = assemble(g)
 
     val extracted: GrammarRepr = AlternationExtraction.process(grammar)
 
@@ -56,7 +56,7 @@ class AlternationExtractionSpec extends TestSpecification with SharedNoIdModelAs
       'B := "b1"
     )
 
-    val expected: GrammarRepr = modelAssembler.assemble(eG.productions)
+    val expected: GrammarRepr = assemble(eG)
 
     extracted shouldEqual expected
   }

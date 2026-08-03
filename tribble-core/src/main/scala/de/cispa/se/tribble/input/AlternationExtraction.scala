@@ -44,7 +44,7 @@ object AlternationExtraction extends AssemblyPhase {
     for ((nonTerminal, rule) <- grammar.rules) {
       outerExtract(nonTerminal, rule)(newRules, ids)
     }
-    GrammarRepr(grammar.start, rules = newRules.toMap)
+    GrammarRepr(grammar.start, grammar.ignore, rules = newRules.toMap)
   }
 
   /**

@@ -40,11 +40,11 @@ class MaxDepthGeneratorSpec extends TestSpecification with ScalaCheckDrivenPrope
       'C := "a" | "b" ~ "b" | 'E,
       'E := "e" ~ "f" | "g"
     )
-    implicit val grammar: GrammarRepr = modelAssembler.assemble(g.productions)
+    val grammar: GrammarRepr = assemble(g)
 
     // cannot produce trees of depth 2 or less
     an[IllegalArgumentException] should be thrownBy {
-      new MaxDepthGenerator(10, random, regexGenerator, 2, randomChoice).generate
+      new MaxDepthGenerator(10, random, regexGenerator, 2, randomChoice).generate(grammar)
     }
 
     // can produce trees of depth 3 and more
@@ -52,7 +52,7 @@ class MaxDepthGeneratorSpec extends TestSpecification with ScalaCheckDrivenPrope
     forAll(depths) { maxDepth =>
       val generator = new MaxDepthGenerator(10, random, regexGenerator, maxDepth, randomChoice)
 
-      implicit def arbTree: Arbitrary[DTree] = Arbitrary(generator.generate)
+      implicit def arbTree: Arbitrary[DTree] = Arbitrary(generator.generate(grammar))
 
       forAll("tree") { t: DTree =>
         t.depth() should be <= maxDepth

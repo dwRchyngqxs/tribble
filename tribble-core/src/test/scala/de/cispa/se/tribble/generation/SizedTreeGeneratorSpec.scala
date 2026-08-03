@@ -4,7 +4,7 @@ package generation
 import java.nio.charset.StandardCharsets
 
 import better.files._
-import de.cispa.se.tribble.input.{SharedModelAssembler, TextDSLParser}
+import de.cispa.se.tribble.input.{SharedModelAssembler, TextDSLParser, ModelAssembler}
 import fastparse._
 import org.scalacheck.Gen
 import org.scalatest.concurrent.Eventually
@@ -13,6 +13,7 @@ import org.scalatest.time.{Seconds, Span}
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 import scala.util.Random
+import de.cispa.se.tribble.input.ModelAssemblerSpec
 
 class SizedTreeGeneratorSpec extends TestSpecification with SharedModelAssembler with ScalaCheckDrivenPropertyChecks with Eventually {
   private[this] val logger = org.log4s.getLogger
@@ -25,14 +26,14 @@ class SizedTreeGeneratorSpec extends TestSpecification with SharedModelAssembler
     val shortestTreeGenerator = new ShortestTreeGenerator(regexGenerator, random, 1)
 
     val grammars = Table("path",
-      "src/test/resources/json.tribble",
-      "src/test/resources/js.tribble",
-      "src/test/resources/clojure.tribble",
-      "src/test/resources/kotlin.tribble",
-      "src/test/resources/regex.tribble",
-      "src/test/resources/regex_generative.tribble",
-      "src/test/resources/tribble.tribble",
-      "src/test/resources/tribble_generative.tribble"
+      "tribble-core/src/test/resources/json.tribble",
+      "tribble-core/src/test/resources/js.tribble",
+      "tribble-core/src/test/resources/clojure.tribble",
+      "tribble-core/src/test/resources/kotlin.tribble",
+      "tribble-core/src/test/resources/regex.tribble",
+      "tribble-core/src/test/resources/regex_generative.tribble",
+      "tribble-core/src/test/resources/tribble.tribble",
+      "tribble-core/src/test/resources/tribble_generative.tribble"
     )
 
     forAll(grammars) { path =>
@@ -43,7 +44,7 @@ class SizedTreeGeneratorSpec extends TestSpecification with SharedModelAssembler
           inside(parsed) {
             case Parsed.Failure(lastParser, index, extra) => fail(s"Could not parse the grammar file at '$path' expected $lastParser at ${extra.input.prettyIndex(index)}")
             case Parsed.Success(prods, _) =>
-              val grammar: GrammarRepr = modelAssembler.assemble(prods)
+              val grammar: GrammarRepr = modelAssembler.assemble(ModelAssembler.makeMap(prods))
 
               forAll((Gen.choose(10, 300), "requested size")) { s: Int =>
                 whenever(s >= 10) {

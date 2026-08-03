@@ -19,7 +19,7 @@ class QuantificationEpsilonizationSpec extends TestSpecification with SharedAuto
     )
 
     // The following should not throw an IllegalArgumentException
-    modelAssembler.assemble(g.productions)
+    modelAssembler.assemble(ModelAssembler.makeMap(g.productions))
   }
 
   it should "transform quantifications" in {
@@ -34,7 +34,7 @@ class QuantificationEpsilonizationSpec extends TestSpecification with SharedAuto
     )
 
     forAll(rules) { (rule, expected) =>
-      val grammar = modelAssembler.assemble(Seq('S := rule))
+      val grammar = modelAssembler.assemble(Map('S := rule))
       grammar.root shouldEqual expected
     }
   }

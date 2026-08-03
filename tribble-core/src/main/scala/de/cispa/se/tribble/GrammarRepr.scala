@@ -1,6 +1,6 @@
 package de.cispa.se.tribble
 
-final case class GrammarRepr(start: NonTerminal, rules: Map[NonTerminal, DerivationRule]) {
+final case class GrammarRepr(start: NonTerminal, ignore: NonTerminal, rules: Map[NonTerminal, DerivationRule]) {
   def root: DerivationRule = rules(start)
   def apply(reference: Reference): DerivationRule = get(reference.name)
   def apply(nonTerminal: NonTerminal): DerivationRule = get(nonTerminal)

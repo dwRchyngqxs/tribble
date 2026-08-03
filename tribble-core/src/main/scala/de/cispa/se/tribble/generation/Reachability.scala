@@ -10,7 +10,8 @@ import org.jgrapht.util.{ConcurrencyUtil, SupplierUtil}
 import java.util.{Collections, Map => JMap, Set => JSet}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-
+import org.jgrapht.graph.GraphWalk
+import de.cispa.se.tribble.output.{TextDSLPrettyPrinter, Precedence}
 
 sealed class Reachability(grammar: GrammarRepr) {
   /**
@@ -35,20 +36,23 @@ sealed class Reachability(grammar: GrammarRepr) {
     paths
   }
 
+  def pp(x: DerivationRule) = TextDSLPrettyPrinter(x)
   // Populate the reachability and immediate successors by consulting the shortest paths
   // from all nodes in the graph to all interesting nodes.
   grammarGraph.vertexSet().forEach { s =>
     preliminaryTargets.foreach { t =>
-      // There is an edge case if s == t.
-      // In this case we must not use the shortest path as given by the CHManyToManyShortestPaths algorithm
-      // because it simply reports a path consisting of the one node.
-      // Instead we use the EppsteinShortestPathIterator and choose a path that has at least one edge.
-      val path = if (s == t) {
-        new EppsteinShortestPathIterator(grammarGraph, s, t).asScala.find(_.getLength > 0).orNull
+      // There is an edge case if s == t, the shotest reported path is of length 0.
+      // Instead we try a self loop or use the shortest path starting from a children
+      val path = if (s != t) paths.getPath(s, t)
+      else if (grammarGraph.containsEdge(s, t)) {
+        new GraphWalk(grammarGraph, s, t, List(grammarGraph.getEdge(s, t)).asJava, 1)
       } else {
-        paths.getPath(s, t)
+        val candidates = grammarGraph.outgoingEdgesOf(s).asScala.map { e =>
+          val p = paths.getPath(grammarGraph.getEdgeTarget(e), t)
+          if (p == null) null else new GraphWalk(grammarGraph, s, t, (e :: p.getEdgeList().asScala.toList).asJava, p.getWeight() + 1)
+        }.filter(_ != null)
+        if (candidates.isEmpty) null else candidates.minBy(_.getLength())
       }
-
       if (path != null) {
         _reachability(s)(t) = path.getLength
         // if there are no interesting rules between the source and target, the target is immediately reachable
@@ -60,13 +64,15 @@ sealed class Reachability(grammar: GrammarRepr) {
   }
 
   /** The set of derivation rules that are of interest to the current metric. */
-  val interestingRules: Set[DerivationRule] = _reachability(grammar.root).keySet.toSet ++ (if (grammar.root.isInstanceOf[Reference]) {
-    // Edge case: the root is not reachable from itself by construction,
-    // however, it should still count as an interesting rule if it is a Reference.
-    Set(grammar.root)
-  } else {
-    Set()
-  })
+  val interestingRules: Set[DerivationRule] = {
+    _reachability(grammar.root).keySet.toSet ++ (if (isInteresting(grammar.root)) {
+      // Edge case: the root may not be reachable from itself,
+      // however, it should still count as an interesting rule.
+      Set(grammar.root)
+    } else {
+      Set()
+    })
+  }
 
   /** The set of derivation rules that are of interest to the current metric. */
   def getInterestingRules: JSet[DerivationRule] = Collections.unmodifiableSet(interestingRules.asJava)
@@ -99,21 +105,30 @@ object Reachability {
   private[tribble] def constructGraph(g: GrammarRepr): Graph[DerivationRule, DefaultEdge] = {
     val emptyGraph: Graph[DerivationRule, DefaultEdge] = GraphTypeBuilder
       .directed()
-      .weighted(true)
+      .weighted(false)
       .allowingMultipleEdges(false)
-      .allowingSelfLoops(false)
+      .allowingSelfLoops(true)
       .edgeSupplier(SupplierUtil.DEFAULT_EDGE_SUPPLIER)
       .buildGraph()
 
     val builder: GraphBuilder[DerivationRule, DefaultEdge, Graph[DerivationRule, DefaultEdge]] = new GraphBuilder(emptyGraph)
 
+    var found = mutable.Set[NonTerminal]()
     g.rules.values.flatMap(_.toStream).foreach {
-      case ref: Reference => builder.addEdge(ref, g(ref))
+      case ref: Reference => {
+        found += ref.name
+        builder.addEdge(ref, g(ref))
+      }
       case c: Concatenation => c.elements.foreach(builder.addEdge(c, _))
       case a: Alternation => a.alternatives.foreach(builder.addEdge(a, _))
-      case q: Quantification => builder.addEdge(q, q.subject)
+      case q: Quantification => if (q.max > 0) {
+        builder.addEdge(q, q.subject)
+        if (q.max > 1) builder.addEdge(q, q)
+      }
       case _: TerminalRule =>
     }
+    builder.addVertex(g.root)
+    if (g.ignore != "") builder.addVertex(g(g.ignore))
 
     builder.buildAsUnmodifiable()
   }
@@ -122,4 +137,13 @@ object Reachability {
 class NonTerminalReachability(grammar: GrammarRepr) extends Reachability(grammar) {
 
   override protected def isInteresting(rule: DerivationRule): Boolean = rule.isInstanceOf[Reference]
+}
+
+class NewReachability(grammar: GrammarRepr) extends Reachability(grammar) {
+  override protected def isInteresting(rule: DerivationRule): Boolean =
+    grammarGraph.incomingEdgesOf(rule).asScala.exists(grammarGraph.getEdgeSource(_) match {
+      case Alternation(alts, _) => alts.size > 1
+      case Quantification(_, min, max, _) => min < max // Quantifications have a self-edge so may be interesting
+      case _ => false
+    })
 }

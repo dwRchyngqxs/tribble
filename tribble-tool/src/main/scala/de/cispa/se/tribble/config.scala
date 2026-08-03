@@ -6,7 +6,7 @@ import java.nio.file.{Files, Path}
 import de.cispa.se.tribble.generation._
 import de.cispa.se.tribble.input._
 import de.cispa.se.tribble.output._
-import org.backuity.clist.{Command, arg, opt}
+import org.backuity.clist.{Command, arg, args, opt}
 import org.log4s.getLogger
 
 import scala.util.Random
@@ -51,41 +51,43 @@ trait GrammarModule { self: Command =>
   var damping: Double = opt[Double](default = Double.MinPositiveValue, description = "The damping factor for probabilities. Default Double.MinPositiveValue (4.9e-324)")
   var similarity: Double = opt[Double](default = 1.0d, description = "The similarity factor for probabilities. Default 1.0")
   var unfoldRegexes: Boolean = opt[Boolean](description = "Unfold regular expression literals into productions. (Character ranges are preserved as single derivations)")
-  var mergeLiterals: Boolean = opt[Boolean](description = "Merge concatenations of literals into single literals.")
   var checkDuplicateAlternatives: Boolean = opt[Boolean](default = true, name ="no-check-duplicate-alts", description = "Allow duplicate alternatives in alternations.")
   var checkIds: Boolean = opt[Boolean](default = true, name ="no-check-ids", description = "Allow inconsistent ids in derivation rules.")
   var assignProbabilities: Boolean = opt[Boolean](default = true, name ="no-assign-prob", description = "Do not assign probabilities to derivation rules.")
   var epsilonizeQuantifications: Boolean = opt[Boolean](description = "Turn optional parts of quantifications into alternations.")
-  var inlineRules: String = opt[String](name = "inline", default = "", description = "Comma separated list of rules to fully inline.")
-  lazy val rulesToInline: Array[String] = if (inlineRules.matches(raw"\A(\w+(,\w+)*)?\z")) inlineRules.split(',') else new Array[String](0)
-  lazy val modelAssembler: ModelAssembler = new ModelAssembler(automatonCache, damping, similarity, unfoldRegexes, mergeLiterals, checkDuplicateAlternatives, checkIds, assignProbabilities, epsilonizeQuantifications, rulesToInline)
+  var startRule: Option[String] = opt[Option[String]](name = "start-rule", description = "Starting rule for generation. Default is start or the single unused rule if there is no start rule.")
+  var ignoreRule: Option[String] = opt[Option[String]](name = "ignore-rule", description = "Rule to separate tokens, ignored by parsing. Default is ignore or none if there is no ignore rule.")
+  lazy val modelAssembler: ModelAssembler = new ModelAssembler(automatonCache, damping, similarity, unfoldRegexes, checkDuplicateAlternatives, checkIds, assignProbabilities, epsilonizeQuantifications, startRule, ignoreRule)
 
   var loadingStrategy: String = opt[String](default = "parse", description = "How to process the grammar file. Valid options are parse, compile, and unmarshal.")
   lazy val loadingStrategyImpl: LoadingStrategy = loadingStrategy match {
-    case "parse" => ParseGrammar(modelAssembler)
-    case "compile" => CompileGrammar(modelAssembler)
+    case "parse" => ParseGrammar
+    case "compile" => CompileGrammar
     case "unmarshal" => UnmarshalGrammar
     case _ => throw new IllegalArgumentException(s"Unknown loading strategy $loadingStrategy")
   }
   lazy val grammarLoader: GrammarLoader = new GrammarLoader(loadingStrategyImpl, grammarCache)
-  var grammarFile: File = arg[File](description = "Path to the grammar file")
-  lazy val grammar: GrammarRepr = grammarLoader.loadGrammar(grammarFile)
-  lazy val reachability: Reachability = new Reachability(grammar)
+  var grammarFiles: Seq[File] = args[Seq[File]](description = "Path to the grammar file")
+  lazy val grammar: GrammarRepr = modelAssembler.assemble(grammarLoader.loadGrammars(grammarFiles))
+  lazy val reachability: Reachability = new NewReachability(grammar)
 }
 
-trait GrammarOutputModule extends GrammarModule { self: Command =>
-  var outputFormat: String = opt[String](default = "scala", name = "output-format", description = """Format to use when printing a grammar file, supported formats are "text" and "scala[-id][-prob]" where parts in brackets are optional.""")
+trait GrammarOutputModule { self: Command =>
+  implicit def grammarFiles: Seq[File]
+  var outputPath: String = opt[String](default = "output.txt", description = "Grammar output path (default: in-place)")
+  var outputFormat: String = opt[String](default = "scala", description = """Format to use when printing a grammar file, supported formats are "text" and "scala[-id][-prob]" where parts in brackets are optional.""")
 
   private val scalaPattern = "scala(-id)?(-prob)?".r
   private val textPattern = "text".r
-  lazy val prettyPrinter: GrammarPrettyPrinter = outputFormat match {
+  lazy val grammarPP: GrammarPrettyPrinter = outputFormat match {
     case scalaPattern(printID, printProb) => new ScalaDSLPrettyPrinter(!printID.isEmpty, !printProb.isEmpty)
     case textPattern() => TextDSLPrettyPrinter
   }
 }
 
-trait ConstraintModule { self: Command =>
-  var maxRepetitions: Int = opt[Int](default = 10, description = "Maximum number of repetitions of elements (override quantifications). Default 10")
+trait GrammarMutationModule { self: Command =>
+  var mutationCount: Int = opt[Int](default = 1, description = "How many mutations to perform.")
+  var k: Int = opt[Int](default = 1, description = "Value of k for generating tests covering the mutated rule.")
 }
 
 trait HeuristicModule { self: Command =>
@@ -109,13 +111,31 @@ trait HeuristicModule { self: Command =>
   }
 }
 
-trait ForestationGenerationModule { self: Command =>
+trait TreeOutputModule { self: Command =>
   implicit def grammar: GrammarRepr
   implicit def reachability: Reachability
   implicit def random: Random
   def regexGenerator: RegexGenerator
   def heuristicImpl: Heuristic
   def shortestTreeGenerator: ShortestTreeGenerator
+
+  var maxRepetitions: Int = opt[Int](default = 10, description = "Maximum number of repetitions of elements (override quantifications). Default 10")
+  var maxDepth: Int = opt[Int](description =
+    "When randomly generating subtrees, ignore optional elements after this depth.")
+  var cutoffDepth: Int = opt[Int](default = Int.MaxValue, description =
+    "When randomly generating subtrees, switch over to shortest derivation after this depth.")
+
+  lazy val randomTree: NaiveProbabilisticTreeGenerator = new NaiveProbabilisticTreeGenerator(maxRepetitions, regexGenerator, maxDepth, random, shortestTreeGenerator, cutoffDepth)
+  lazy val treePP: DTreePrettyPrinter = new DTreePrettyPrinter(grammar, randomTree)
+}
+
+trait ForestationGenerationModule { self: Command =>
+  implicit def grammar: GrammarRepr
+  implicit def reachability: Reachability
+  implicit def random: Random
+  implicit def regexGenerator: RegexGenerator
+  implicit def heuristicImpl: Heuristic
+  implicit def shortestTreeGenerator: ShortestTreeGenerator
 
   protected var k: Int = opt[Int](default = 4, description = "The k for k-path coverage.")
   protected var p: Int = opt[Int](default = 20, description = "The number of forests to generate for each size from 1 to #targets.")
@@ -139,10 +159,11 @@ trait ForestGeneratorModule { self: Command =>
   implicit def grammar: GrammarRepr
   implicit def reachability: Reachability
   implicit def random: Random
-  def regexGenerator: RegexGenerator
-  def heuristicImpl: Heuristic
-  def shortestTreeGenerator: ShortestTreeGenerator
-  def maxRepetitions: Int
+  implicit def regexGenerator: RegexGenerator
+  implicit def heuristicImpl: Heuristic
+  implicit def shortestTreeGenerator: ShortestTreeGenerator
+  implicit def maxRepetitions: Int
+  implicit def randomTree: NaiveProbabilisticTreeGenerator
 
   private val kPathPattern = """(\d+)-path""".r
   private val kPathDepthPattern = """(\d+)-path-(\d+)""".r
@@ -153,8 +174,7 @@ trait ForestGeneratorModule { self: Command =>
   private val rndPattern = """(\d+)-random-(\d+)""".r
   private val sizedPattern = """(\d+)-(\d+)-random-(\d+)""".r
   private val depthPattern = """(\d+)-depth-random-(\d+)""".r
-  private val probPattern = """(\d+)-probabilistic-(\d+)""".r
-  private val limitedProbPattern = """(\d+)-(\d+)-probabilistic-(\d+)""".r
+  private val probPattern = """probabilistic-(\d+)""".r
   protected var mode: String = opt[String](default = "mode-not-provided", description =
     """The Construction / Generation mode. Possible values are:
       | <k>-path                              (Generate a set of files with full k-path coverage)
@@ -166,8 +186,7 @@ trait ForestGeneratorModule { self: Command =>
       | <s>-random-<n>                        (Generate n random files of approximate tree size s)
       | <min>-<max>-random-<n>                (Generate n random files of tree sizes between min and max)
       | <max>-depth-random-<n>                (Generate n random files of depth up to max)
-      | <d>-probabilistic-<n>                 (Generate n files adhering to probability annotations ignoring optional elements after depth d)
-      | <d>-<c>-probabilistic-<n>             (Generate n files adhering to probability annotations ignoring optional elements after depth d and switching over to shortest derivation after depth c)""".stripMargin)
+      | probabilistic-<n>                     (Generate n files adhering to probability annotations)""".stripMargin)
   lazy val forestGenerator: ForestGenerator = mode match {
     case sizedPattern(min, max, n) => new SizedForestAdapter(min.toInt, max.toInt, n.toInt, heuristicImpl, maxRepetitions)(grammar, random, shortestTreeGenerator)
     case depthPattern(depth, num) => new ForestAdapter(new MaxDepthGenerator(maxRepetitions, random, regexGenerator, depth.toInt, heuristicImpl), num.toInt)
@@ -178,8 +197,7 @@ trait ForestGeneratorModule { self: Command =>
     case kPathDepthPattern(k, d) => new GoalBasedTreeGenerator(new BestEffortMaxDepthGenerator(maxRepetitions, random, regexGenerator, d.toInt, heuristicImpl), random)(grammar, new KPathCoverageGoal(k.toInt))
     case recurrentKPathPattern(k, n) => new ForestSizeLimiter(new GoalBasedTreeGenerator(shortestTreeGenerator, random)(grammar, new RecurrentKPathCoverageGoal(k.toInt)), n.toInt)
     case recurrentTimedKPathPattern(k, minutes) => new ForestTimeLimiter(new GoalBasedTreeGenerator(shortestTreeGenerator, random)(grammar, new RecurrentKPathCoverageGoal(k.toInt)), minutes.toInt)
-    case probPattern(d, n) => new ForestAdapter(new NaiveProbabilisticTreeGenerator(maxRepetitions, regexGenerator, d.toInt, random, shortestTreeGenerator), n.toInt)
-    case limitedProbPattern(d, c, n) => new ForestAdapter(new NaiveProbabilisticTreeGenerator(maxRepetitions, regexGenerator, d.toInt, random, shortestTreeGenerator, c.toInt), n.toInt)
+    case probPattern(n) => new ForestAdapter(randomTree, n.toInt)
     case _ => throw new IllegalArgumentException(s"Unknown mode '$mode'")
   }
 }

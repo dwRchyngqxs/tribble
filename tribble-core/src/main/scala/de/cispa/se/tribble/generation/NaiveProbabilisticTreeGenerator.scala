@@ -5,7 +5,7 @@ import scala.util.Random
 
 class NaiveProbabilisticTreeGenerator(maxRepetitions: Int, regexGenerator: RegexGenerator, maxDepth: Int, random: Random, shortestTreeGenerator: ShortestTreeGenerator, cutoffDepth: Int = Int.MaxValue) extends NaiveTreeGenerator(maxRepetitions, regexGenerator, maxDepth, random) {
 
-  override protected def alternativeGenerationMethod(decl: DerivationRule, parent: Option[DNode], currentDepth: Int)(implicit grammar: GrammarRepr): Option[DTree] = {
+  override protected def alternativeGenerationMethod(decl: DerivationRule, parent: Option[DNode], currentDepth: Int)(implicit rules: Map[NonTerminal, DerivationRule]): Option[DTree] = {
     if (currentDepth <= cutoffDepth) {
       None
     } else {
@@ -13,7 +13,7 @@ class NaiveProbabilisticTreeGenerator(maxRepetitions: Int, regexGenerator: Regex
     }
   }
 
-  override protected def instantiateAlternation(alternation: Alternation, parent: Option[DNode], currentDepth: Int)(implicit grammar: GrammarRepr): DTree = {
+  override protected def instantiateAlternation(alternation: Alternation, parent: Option[DNode], currentDepth: Int)(implicit rules: Map[NonTerminal, DerivationRule]): DTree = {
     // break out from set to have one order
     val orderedAlts = alternation.alternatives
     var p = random.nextDouble()

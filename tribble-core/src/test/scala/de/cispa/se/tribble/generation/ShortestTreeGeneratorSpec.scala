@@ -16,7 +16,7 @@ class ShortestTreeGeneratorSpec extends TestSpecification with SharedModelAssemb
       'B := "b"
     )
 
-    val grammar = modelAssembler.assemble(g.productions)
+    val grammar = assemble(g)
 
     val seed: Long = Random.nextInt()
     logger.debug(s"Testing with seed $seed")
@@ -39,7 +39,7 @@ class ShortestTreeGeneratorSpec extends TestSpecification with SharedModelAssemb
       'B := "b"
     )
 
-    val grammar = modelAssembler.assemble(g.productions)
+    val grammar = assemble(g)
 
     val seed: Long = Random.nextInt()
     logger.debug(s"Testing with seed $seed")

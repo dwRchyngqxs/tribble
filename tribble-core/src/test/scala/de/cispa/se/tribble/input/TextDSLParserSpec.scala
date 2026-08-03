@@ -288,7 +288,8 @@ class TextDSLParserSpec extends TestSpecification {
       "S: /\\\\\\\'/;" -> "\\\\\\\'",
       "S: /hello///comment\n;" -> "hello",
       "S: /he\\/*ll*\\/o/;" -> "he\\/*ll*\\/o",
-      "S: /hel\nlo/\n;" -> "hel\nlo"
+      "S: /hel\nlo/\n;" -> "hel\nlo",
+      """S: / \n\r\t\b\f\'[ \n\r\t\b\f\']/;""" -> " \n\r\t\b\f\\'[ \n\r\t\b\f\\']"
       // todo add tests with & ~ \+ \*
     )
 

@@ -4,6 +4,7 @@ package generation
 import scala.util.Random
 
 private[tribble] class GoalBasedTreeGenerator(closeOffGenerator: TreeGenerator, random: Random)(implicit grammar: GrammarRepr, goal: CoverageGoal) extends ForestGenerator {
+  private implicit val rules = grammar.rules
 
   private def gen(rule: DerivationRule, parent: Option[DNode], currentDepth: Int)(implicit goal: CoverageGoal): DTree = {
     goal.usedDerivation(rule, parent)
@@ -11,28 +12,63 @@ private[tribble] class GoalBasedTreeGenerator(closeOffGenerator: TreeGenerator, 
       delegateToCloseOff(rule, parent, currentDepth)
     } else {
       rule match {
-        case ref@Reference(name, _) =>
-          val node = DNode(ref, parent)
+        case Reference(name, _) =>
+          val node = DNode(rule, parent)
           node.children(0) = gen(grammar(name), Some(node), currentDepth + 1)
           node
-        case a@Alternation(alternatives, _) =>
+        case Alternation(alternatives, _) =>
           // take the alternative leading to the goal fastest
           val shortestAlts = minimalElementsBy(alternatives, goal.cost)
           val alternative = shortestAlts(random.nextInt(shortestAlts.length))
-          val node = DNode(a, parent)
+          val node = DNode(rule, parent)
           node.children(0) = gen(alternative, Some(node), currentDepth + 1)
           node
-        case c@Concatenation(elements, _) =>
+        case Concatenation(elements, _) =>
           // problem with left recursion
           // we have to expand the closest-to-target element first!
-          val node = DNode(c, parent)
+          val node = DNode(rule, parent)
           val toExpand = elements.zipWithIndex.sortBy { case (e, _) => goal.cost(e) }
           node.children ++= toExpand.map { case (e, i) => i -> gen(e, Some(node), currentDepth + 1) }
           node
-        case q@Quantification(subj, min, _, _) =>
-          val node = DNode(q, parent)
-          node.children ++= Stream.fill(Math.max(min, 1))(subj).map(gen(_, Some(node), currentDepth + 1)).zipWithIndex.map(_.swap)
-          node
+        case Quantification(subj, min, max, _) => {
+          val root = DNode(rule, parent)
+          var node = root
+          var depth = 1
+          // use as many repetition as possible from the k-path
+          // last repetition has no child so no 0 cost child
+          while (depth < max && !goal.targetReached && goal.cost(rule) == 0) {
+            goal.usedDerivation(rule, Some(node))
+            val child = DNode(rule, Some(node))
+            node.children(1) = child
+            node = child
+            depth += 1
+          }
+          if (max > 0) {
+            goal.usedDerivation(rule, Some(node))
+            val child = DNode(rule, Some(node))
+            node.children(0) = gen(subj, Some(node), currentDepth + depth)
+            node.children(1) = child
+          }
+          node = root
+          for (d <- 1 to depth - 1) {
+            node.children(0) = gen(subj, Some(node), currentDepth + d)
+            node = node.children(1).asInstanceOf[DNode]
+          }
+          if (max > 0) {
+            node = node.children(1).asInstanceOf[DNode]
+            depth += 1
+          }
+          // complete to minimum number of repetitions - 1
+          while (depth <= max && (depth <= min || !goal.targetReached)) {
+            goal.usedDerivation(rule, Some(node))
+            val child = DNode(rule, Some(node))
+            node.children(0) = gen(subj, Some(node), currentDepth + depth)
+            node.children(1) = child
+            node = child
+            depth += 1
+          }
+          root
+        }
         case t: TerminalRule =>
           // we do not use delegateToCloseOff here because we have already called goal.usedDerivation
           closeOffGenerator.gen(t, parent, currentDepth)

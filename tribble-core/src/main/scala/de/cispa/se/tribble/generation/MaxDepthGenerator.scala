@@ -18,7 +18,7 @@ class MaxDepthGenerator(maxRepetitions: Int, random: Random, regexGenerator: Reg
   override protected def canExpandQuantification(q: Quantification, currentDepth: Int): Boolean =
     currentDepth + q.subject.shortestDerivation < maxDepth
 
-  override protected def instantiateAlternation(alternation: Alternation, parent: Option[DNode], currentDepth: Int)(implicit grammar: GrammarRepr): DTree = {
+  override protected def instantiateAlternation(alternation: Alternation, parent: Option[DNode], currentDepth: Int)(implicit rules: Map[NonTerminal, DerivationRule]): DTree = {
     val node = DNode(alternation, parent)
     prepareNode(node)
     val alternative = {

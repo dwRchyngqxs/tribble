@@ -10,10 +10,16 @@ import java.io.File
   */
 private[tribble] class GrammarLoader(loadingStrategy: LoadingStrategy, grammarCache: GrammarCache) {
 
-  def loadGrammar(grammarFile: File): GrammarRepr = {
+  def loadGrammars(grammarFiles: Seq[File]): Map[NonTerminal, DerivationRule] =
+    grammarFiles.map(loadGrammar).reduce{ (l, r) =>
+      val duplicated = l.keySet & r.keySet
+      if (duplicated.isEmpty) l ++ r
+      else throw new IllegalArgumentException(s"Cannot redefine non terminals in different grammars: ${duplicated.mkString(", ")}")
+    }
+
+  def loadGrammar(grammarFile: File): Map[NonTerminal, DerivationRule] =
     grammarCache.loadGrammar(grammarFile.computeHash()) match {
       case Some(grammar) => grammar
       case None => loadingStrategy.load(grammarFile)
     }
-  }
 }

@@ -11,25 +11,24 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 private[tribble] class ModelAssembler(
-                                       automatonCache: AutomatonCache,
-                                       damping: Double = Double.MinPositiveValue,
-                                       similarity: Double = 1.0d,
-                                       transformRegexes: Boolean = false,
-                                       mergeLiterals: Boolean = false,
-                                       checkDuplicateAlternatives: Boolean = true,
-                                       checkIds: Boolean = true,
-                                       assignProbabilities: Boolean = true,
-                                       epsilonizeQuantifications: Boolean = false,
-                                       rulesToInline: Array[String] = new Array(0),
-                                     ) {
+    automatonCache: AutomatonCache,
+    damping: Double = Double.MinPositiveValue,
+    similarity: Double = 1.0d,
+    transformRegexes: Boolean = false,
+    checkDuplicateAlternatives: Boolean = true,
+    checkIds: Boolean = true,
+    assignProbabilities: Boolean = true,
+    epsilonizeQuantifications: Boolean = false,
+    startRule: Option[String] = None,
+    ignoreRule: Option[String] = None,
+  ) {
 
   private val phases = mutable.ListBuffer[AssemblyPhase]()
   private[tribble] def appendPhase(phase: AssemblyPhase): Unit = phases.append(phase)
 
+  appendPhase(EnsureConnected)
   appendPhase(new AutomatonAssembly(automatonCache))
-  if (!rulesToInline.isEmpty) appendPhase(new InlineRules(rulesToInline))
   if (transformRegexes) appendPhase(RegexTransformation)
-  if (mergeLiterals) appendPhase(LiteralMerge)
   if (checkDuplicateAlternatives) appendPhase(CheckDuplicateAlternatives)
   if (epsilonizeQuantifications) appendPhase(QuantificationEpsilonization)
   appendPhase(AssignIds)
@@ -41,14 +40,44 @@ private[tribble] class ModelAssembler(
   }
   appendPhase(GrammarStatistics)
 
-  def assemble(productions: Seq[Production]): GrammarRepr = {
-    val allPhases = new BaseAssembly(productions) :: phases.toList
-
-    var grammar: GrammarRepr = GrammarRepr("No start symbol set!", Map.empty)
-    for (phase <- allPhases) {
-      grammar = phase.process(grammar)
+  def assemble(rules: Map[NonTerminal, DerivationRule]): GrammarRepr = {
+    val nts = rules.keySet
+    val ignore = ignoreRule match {
+      case Some(nt) =>
+        if (!nts.contains(nt)) throw new IllegalArgumentException(s"Provided ignore rule $nt doesn't exist!")
+        nt
+      case None => if (nts.contains("ignore")) "ignore" else ""
     }
+    // We want to keep track of non-terminals that are used in the grammar
+    // to find undefined referenced and also if required
+    // to find the one that is unused and will be treated as the root.
+    val used = rules.flatMap(_._2.toStream.collect{ case Reference(name, _) => name }).toSet
+    val start = startRule match {
+      case Some(nt) =>
+        if (!nts.contains(nt)) throw new IllegalArgumentException(s"Provided start rule $nt doesn't exist!")
+        nt
+      case None if nts.contains("start") => "start"
+      case None => {
+        val unused = nts diff (used + ignore)
+        if (unused.isEmpty) throw new IllegalArgumentException("Cannot infer grammar start symbol as there are no unused symbol!")
+        if (unused.size > 1) throw new IllegalArgumentException(s"Cannot infer grammar start symbol as there are multiple unused symbols: ${unused.mkString(", ")}")
+        unused.head
+      }
+    }    
+    val undefined = used diff nts
+    if (undefined.nonEmpty) throw new IllegalArgumentException(raw"Grammar contains undefined symbols: ${undefined.mkString(", ")}")
+    var grammar = GrammarRepr(start, ignore, rules)
+    for (phase <- phases) grammar = phase.process(grammar)
     grammar
+  }
+}
+
+private[tribble] object ModelAssembler {
+  def makeMap(productions: Seq[Production]): Map[NonTerminal, DerivationRule] = {    
+    val rules = productions.groupBy(_._1)
+    val duplicated = rules.filter(_._2.size > 1).map(_._1)
+    if (duplicated.size > 0) throw new IllegalArgumentException(s"Cannot have multiple declarations for: ${duplicated.mkString(", ")}")
+    rules.mapValues(_.head._2)
   }
 }
 
@@ -56,57 +85,23 @@ trait AssemblyPhase {
   def process(grammar: GrammarRepr): GrammarRepr
 
   protected case class Box[T](var value: T)
-
 }
 
-class BaseAssembly(productions: Seq[Production]) extends AssemblyPhase {
-
-  /** Throw if there are rules in the grammar that are not reachable from the root. */
-  private def ensureConnected(grammar: GrammarRepr): Unit = {
-    // There is an edge case where the root symbol is terminal.
-    // In this case we forbid the grammar having any other rules.
-    val root = grammar.root
-    if (root.isInstanceOf[TerminalRule]) {
-      if (grammar.rules.size == 1) {
-        return
-      } else {
-        throw new IllegalArgumentException("When the root of the grammar is a terminal symbol, it is not allowed to have other productions!")
-      }
-    }
-
+object EnsureConnected extends AssemblyPhase {
+  override def process(grammar: GrammarRepr): GrammarRepr = {
+    // Throw if there are rules in the grammar that are not reachable from the root or ignore.
     val graph = Reachability.constructGraph(grammar)
     val allNodes = graph.vertexSet().asScala
     val inspector = new ConnectivityInspector(graph)
-    val rootReach = inspector.connectedSetOf(root).asScala
-    if (rootReach.size < allNodes.size) {
-      val unreachable = allNodes diff rootReach
-      throw new IllegalArgumentException(s"Grammar contains symbols unreachable from the root ${grammar.start}: ${unreachable.mkString(", ")}")
+    val rootReach = inspector.connectedSetOf(grammar.root).asScala
+    val ignoreReach = if (grammar.ignore == "") mutable.Set()
+      else inspector.connectedSetOf(grammar(grammar.ignore)).asScala
+    val reach = rootReach ++ ignoreReach
+    if (reach.size < allNodes.size) {
+      val unreachable = allNodes diff reach
+      throw new IllegalArgumentException(s"Grammar contains symbols unreachable from the root ${grammar.start} and ignore: ${unreachable.mkString(", ")}")
     }
-  }
-
-  override def process(grammar: GrammarRepr): GrammarRepr = {
-    val used = new mutable.HashSet[NonTerminal]
-    var g = grammar
-    for (production@(lhs, rhs) <- productions) {
-      if (g.rules.contains(lhs)) throw new IllegalArgumentException(s"Cannot have multiple declarations for $lhs!")
-      g = g.copy(rules = g.rules + production)
-      // We want to keep track of non-terminals that are used in the grammar
-      // to find the one that is unused and will be treated as the root.
-      // We also want to detect the case where several rules refer to each other but none is reachable from the true root.
-      // However, this requires us to have built up a graph representation already, so this check occurs later in a "connectedness" check.
-      used ++= rhs.toStream.collect({ case Reference(name, _) => name })
-    }
-
-    val unused = g.rules.keySet diff used
-    if (unused.isEmpty) throw new IllegalArgumentException("Grammar contains no root symbol!")
-    if (unused.size > 1) throw new IllegalArgumentException(raw"Grammar contains multiple root symbols: ${unused.mkString(", ")}")
-    val undefined = used diff g.rules.keySet
-    if (undefined.nonEmpty) throw new IllegalArgumentException(raw"Grammar contains undefined symbols: ${undefined.mkString(", ")}")
-    // set the right start symbol
-    val grammarRepr = GrammarRepr(unused.head, g.rules)
-    // perform the "connectedness" check
-    ensureConnected(grammarRepr)
-    grammarRepr
+    grammar
   }
 }
 
@@ -218,7 +213,7 @@ object RegexTransformation extends AssemblyPhase {
     // might need to force the view
 
     logger.info(s"Transformed ${transformedAutomata.value} automata into productions.")
-    GrammarRepr(grammar.start, updatedProductions.toMap)
+    GrammarRepr(grammar.start, grammar.ignore, updatedProductions.toMap)
   }
 
 }
@@ -239,95 +234,6 @@ object AssignIds extends AssemblyPhase {
       }
 
     grammar
-  }
-}
-
-object LiteralMerge extends AssemblyPhase {
-  private val logger = getLogger
-
-  private def merged(rule: DerivationRule)(implicit grammar: GrammarRepr, merges: Box[Int]): DerivationRule = {
-    val newRule = rule match {
-      case Concatenation(Literal(first, _) :: Literal(second, _) :: tail, _) =>
-        merges.value += 1
-        val combined = Literal(first + second)
-        if (tail.isEmpty) combined else merged(Concatenation(combined :: tail))
-      case Concatenation((lit@Literal(first, _)) :: (ref@Reference(something, _)) :: tail, _) =>
-        // this can lead to unused references
-        grammar(something) match {
-          case Literal(second, _) =>
-            merges.value += 1
-            val combined = Literal(first + second)
-            if (tail.isEmpty) combined else merged(Concatenation(combined :: tail))
-          case _ => Concatenation(lit :: ref :: tail.map(merged))
-        }
-      case Concatenation(elements, _) => Concatenation(elements.map(merged))
-      case Quantification(subject, min, max, _) => Quantification(merged(subject), min, max)
-      case Alternation(alternatives, _) => Alternation(alternatives.map(merged))
-      case _ => rule
-    }
-    newRule.probability = rule.probability
-    newRule
-  }
-
-  override def process(grammar: GrammarRepr): GrammarRepr = {
-    val merges = Box(0)
-    var removed = 0
-    var g = grammar
-    var done = false
-    do {
-      val mergedProductions = g.rules.mapValues(merged(_)(g, merges)).view.force // force eager execution
-      // remove unused references
-      val usedReferences = mergedProductions.values.flatMap(_.toStream.collect { case Reference(n, _) => n }).toSet + g.start
-      val filtered = mergedProductions.filterKeys(usedReferences)
-      removed += mergedProductions.size - filtered.size
-      done = filtered == g.rules
-      g = GrammarRepr(grammar.start, filtered)
-    } while (!done)
-
-    logger.info(s"Merged ${merges.value} literals${if (removed > 0) s" (and removed $removed productions in the process)" else ""}")
-    g
-  }
-}
-
-class InlineRules(rules: Array[String]) extends AssemblyPhase {
-  private val ruleSet = rules.toSet
-
-  private def computeDependencies(rule: DerivationRule): Set[String] = rule match {
-    case Reference(name, _) => Set(name)
-    case Concatenation(elements, _) => elements.map(computeDependencies).reduce(_.union(_))
-    case Alternation(alts, _) => alts.map(computeDependencies).reduce(_.union(_))
-    case Quantification(subject, _, _, _) => computeDependencies(subject)
-    case rule: TerminalRule => Set()
-  }
-
-  private def inlineRule(rule: DerivationRule)(implicit toReplace: String, replacement: DerivationRule): DerivationRule = rule match {
-    case Reference(name, _) if name == toReplace => replacement
-    case Concatenation(elements, id) => Concatenation(elements.map(inlineRule), id)
-    case Alternation(alts, id) => Alternation(alts.map(inlineRule), id)
-    case Quantification(subject, min, max, id) => Quantification(inlineRule(subject), min, max, id)
-    case _ => rule
-  }
-
-  override def process(grammar: GrammarRepr): GrammarRepr = {
-    if (ruleSet(grammar.start)) throw new IllegalArgumentException("Cannot inline starting rule")
-    var deps = mutable.Map[String, Set[String]]()
-    deps ++= grammar.rules.filterKeys(ruleSet).mapValues(computeDependencies)
-    val cycles = deps.filter { case (e, s) => s(e) }
-    if (!cycles.isEmpty) throw new IllegalArgumentException(s"Rules ${cycles.keys} cannot be inlined because they depend on themselves")
-    var g = mutable.Map[String, DerivationRule]()
-    g ++= grammar.rules
-    while (!deps.isEmpty) {
-      implicit val toInline = deps.find(_._2.isEmpty) match {
-        case None => throw new IllegalArgumentException(s"Rules ${deps.keys} cannot be inlined because there is a dependency cycle")
-        case Some(t) => t._1
-      }
-      implicit val replacement = g(toInline)
-      deps -= toInline
-      deps.transform((_, v) => v - toInline)
-      g -= toInline
-      g.transform((_, v) => inlineRule(v))
-    }
-    GrammarRepr(grammar.start, Map[String, DerivationRule](g.toSeq: _*))
   }
 }
 

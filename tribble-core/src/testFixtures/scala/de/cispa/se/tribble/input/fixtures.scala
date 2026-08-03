@@ -1,6 +1,8 @@
 package de.cispa.se.tribble.input
 
 import java.nio.file.{Files, Paths}
+import de.cispa.se.tribble.GrammarRepr
+import de.cispa.se.tribble.dsl.Grammar
 
 
 private[tribble] trait SharedAutomatonCache {
@@ -10,6 +12,7 @@ private[tribble] trait SharedAutomatonCache {
 
 private[tribble] trait SharedModelAssembler extends SharedAutomatonCache {
   val modelAssembler = new ModelAssembler(automatonCache, assignProbabilities = false)
+  def assemble(g: Grammar): GrammarRepr = modelAssembler.assemble(ModelAssembler.makeMap(g.productions))
 }
 
 /** Provides a model assembler which ensure that all derivation rules
@@ -21,4 +24,5 @@ private[tribble] trait SharedNoIdModelAssembler extends SharedAutomatonCache {
     assembler.appendPhase(ResetIds)
     assembler
   }
+  def assemble(g: Grammar): GrammarRepr = modelAssembler.assemble(ModelAssembler.makeMap(g.productions))
 }

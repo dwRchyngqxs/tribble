@@ -75,7 +75,7 @@ class AutomatonTransformerSpec extends TestSpecification with SharedAutomatonCac
 
     val modelAssembler = new ModelAssembler(automatonCache, Double.MinPositiveValue, 1.0d, transformRegexes = true, checkIds = true)
     // this must not throw
-    ParseGrammar(modelAssembler).load(file.toJava)
+    modelAssembler.assemble(ParseGrammar.load(file.toJava))
   }
 
 }

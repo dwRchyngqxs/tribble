@@ -13,7 +13,7 @@ class ShortestTreeGenerator(regexGenerator: RegexGenerator, random: Random, clos
     closeOffs.clear()
   }
 
-  override protected def instantiateAlternation(alternation: Alternation, parent: Option[DNode], currentDepth: Int)(implicit grammar: GrammarRepr): DTree = {
+  override protected def instantiateAlternation(alternation: Alternation, parent: Option[DNode], currentDepth: Int)(implicit rules: Map[NonTerminal, DerivationRule]): DTree = {
     val alternatives = alternation.alternatives
     // partition the alternatives by the shortest derivation and sort
     val partitions = alternatives.groupBy(_.shortestDerivation).toList.sortBy(_._1).map(_._2)
@@ -34,14 +34,22 @@ class ShortestTreeGenerator(regexGenerator: RegexGenerator, random: Random, clos
     node
   }
 
-  override protected def instantiateQuantification(quantification: Quantification, parent: Option[DNode], currentDepth: Int)(implicit grammar: GrammarRepr): DTree = {
-    val q@Quantification(subj, min, _, _) = quantification
-    val node = DNode(q, parent)
-    prepareNode(node)
-    val num = if (min == 0 && closeOffs(q) > 0) 1 else min
-    if (closeOffs(q) > 0)
+  override protected def instantiateQuantification(quantification: Quantification, parent: Option[DNode], currentDepth: Int)(implicit rules: Map[NonTerminal, DerivationRule]): DTree = {
+    val q@Quantification(subj, min, max, _) = quantification
+    val realMin = if (closeOffs(q) > 0) {
       closeOffs(q) -= 1
-    node.children ++= Stream.fill(num)(subj).map(gen(_, Some(node), currentDepth + 1)).zipWithIndex.map(_.swap)
-    node
+      Math.max(1, min)
+    } else min
+    val root = DNode(q, parent)
+    prepareNode(root)
+    var node = root
+    for (depth <- 1 to Math.min(realMin, max)) {
+      val child = DNode(q, Some(node))
+      prepareNode(child)
+      node.children(0) = gen(subj, Some(node), currentDepth + depth)
+      node.children(1) = child
+      node = child
+    }
+    root
   }
 }

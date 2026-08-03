@@ -14,16 +14,16 @@ class ModelAssemblerSpec extends TestSpecification with SharedModelAssembler wit
     )
 
     forAll(grammars) { (prods, expected) =>
-      modelAssembler.assemble(prods) shouldEqual GrammarRepr(expected._1, expected._2)
+      modelAssembler.assemble(ModelAssembler.makeMap(prods)) shouldEqual GrammarRepr(expected._1, "", expected._2)
     }
   }
 
   it should "detect invalid grammars" in {
     val grammars = Table(("grammar", "message"),
-      Seq('S := 'S) -> "Grammar contains no root symbol",
-      Seq('A := 'B, 'B := 'A) -> "Grammar contains no root symbol",
-      Seq('A := 'B, 'B := 'C, 'C := 'D, 'D := 'A) -> "Grammar contains no root symbol",
-      Seq('A := "a", 'B := "b") -> "Grammar contains multiple root symbols",
+      Seq('S := 'S) -> "Cannot infer grammar start symbol as there are no unused symbol!",
+      Seq('A := 'B, 'B := 'A) -> "Cannot infer grammar start symbol as there are no unused symbol!",
+      Seq('A := 'B, 'B := 'C, 'C := 'D, 'D := 'A) -> "Cannot infer grammar start symbol as there are no unused symbol!",
+      Seq('A := "a", 'B := "b") -> "Cannot infer grammar start symbol as there are multiple unused symbols",
       Seq('A := "a" ~ 'C) -> "Grammar contains undefined symbols",
       Seq('A := "a" ~ 'C.?) -> "Grammar contains undefined symbols",
       Seq('A := "a" ~ 'C.rep(1)) -> "Grammar contains undefined symbols",
@@ -31,12 +31,12 @@ class ModelAssemblerSpec extends TestSpecification with SharedModelAssembler wit
       Seq('A := "a" ~ 'C.rep(2, 8)) -> "Grammar contains undefined symbols",
       Seq('A := "a" ~ 'C.rep(0, 2)) -> "Grammar contains undefined symbols",
       Seq('A := "a" ~ 'C.rep(0, Int.MaxValue)) -> "Grammar contains undefined symbols",
-      Seq('A := "a", 'A := "b") -> "Cannot have multiple declarations for A",
-      Seq('A := "a", 'A := "a") -> "Cannot have multiple declarations for A"
+      Seq('A := "a", 'A := "b") -> "Cannot have multiple declarations for",
+      Seq('A := "a", 'A := "a") -> "Cannot have multiple declarations for"
     )
 
     forAll(grammars) { (grammar, errorMessage) =>
-      val iae = the[IllegalArgumentException] thrownBy modelAssembler.assemble(grammar)
+      val iae = the[IllegalArgumentException] thrownBy modelAssembler.assemble(ModelAssembler.makeMap(grammar))
       iae.getMessage should startWith(errorMessage)
     }
   }
@@ -66,7 +66,7 @@ class ModelAssemblerSpec extends TestSpecification with SharedModelAssembler wit
     )
 
     forAll (grammars) {grammar =>
-      inside (modelAssembler.assemble(grammar)("A")) { case Alternation(alts, _) =>
+      inside (modelAssembler.assemble(ModelAssembler.makeMap(grammar))("A")) { case Alternation(alts, _) =>
         alts.map(_.probability).sum === 1.0 +- 1E-9
       }
     }
@@ -81,7 +81,7 @@ class ModelAssemblerSpec extends TestSpecification with SharedModelAssembler wit
 
     val assembler = new ModelAssembler(automatonCache)
     forAll(grammars) { grammar =>
-      an [IllegalArgumentException] should be thrownBy assembler.assemble(grammar)
+      an [IllegalArgumentException] should be thrownBy assembler.assemble(ModelAssembler.makeMap(grammar))
     }
 
   }
@@ -101,7 +101,7 @@ class ModelAssemblerSpec extends TestSpecification with SharedModelAssembler wit
     )
 
     forAll(grammars) { g =>
-      val grammar = modelAssembler.assemble(g)
+      val grammar = modelAssembler.assemble(ModelAssembler.makeMap(g))
       grammar.rules.values.flatMap(_.toStream).map(_.shortestDerivation) should not contain Int.MaxValue
     }
   }
@@ -114,7 +114,7 @@ class ModelAssemblerSpec extends TestSpecification with SharedModelAssembler wit
       'C := "c"
     )
 
-    val grammar = modelAssembler.assemble(g.productions)
+    val grammar = assemble(g)
     val assignedIds = grammar.rules.values.flatMap(_.toStream).map(_.id).toSet
     assignedIds should contain only(0, 1, 2, 3, 4, 5, 6)
     grammar("B").id shouldEqual 0
@@ -128,7 +128,7 @@ class ModelAssemblerSpec extends TestSpecification with SharedModelAssembler wit
       'C := "c"
     )
 
-    val grammar = modelAssembler.assemble(g.productions)
+    val grammar = assemble(g)
     val assignedIds = grammar.rules.values.flatMap(_.toStream).map(_.id).toSet
     assignedIds should have size 7
     assignedIds should contain only(0, 1, 2, 3, 4, 5, 7)
@@ -142,7 +142,7 @@ class ModelAssemblerSpec extends TestSpecification with SharedModelAssembler wit
       'B := "b"
     )
 
-    an[IllegalArgumentException] should be thrownBy modelAssembler.assemble(g.productions)
+    an[IllegalArgumentException] should be thrownBy assemble(g)
   }
 
   it should "detect a terminal root symbol" in {
@@ -154,8 +154,8 @@ class ModelAssemblerSpec extends TestSpecification with SharedModelAssembler wit
       'C := 'A | "c"
     )
 
-    val iae = the[IllegalArgumentException] thrownBy modelAssembler.assemble(g.productions)
-    iae.getMessage shouldEqual "When the root of the grammar is a terminal symbol, it is not allowed to have other productions!"
+    val iae = the[IllegalArgumentException] thrownBy assemble(g)
+    iae.getMessage should startWith("Grammar contains symbols unreachable from the root")
   }
 
   it should "detect unconnected cross-referencing self loops" in {
@@ -168,7 +168,7 @@ class ModelAssemblerSpec extends TestSpecification with SharedModelAssembler wit
       'B := "b" | 'A
     )
 
-    val iae = the[IllegalArgumentException] thrownBy modelAssembler.assemble(g.productions)
+    val iae = the[IllegalArgumentException] thrownBy assemble(g)
     iae.getMessage should startWith("Grammar contains symbols unreachable from the root")
   }
 

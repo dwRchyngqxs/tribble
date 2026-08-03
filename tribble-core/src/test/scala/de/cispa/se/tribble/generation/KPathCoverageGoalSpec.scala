@@ -3,9 +3,10 @@ package generation
 
 import de.cispa.se.tribble.TestDSL._
 import de.cispa.se.tribble.dsl._
-import de.cispa.se.tribble.input.SharedModelAssembler
+import de.cispa.se.tribble.input.{SharedModelAssembler, ModelAssembler}
 
 import scala.util.Random
+import de.cispa.se.tribble.input.ModelAssemblerSpec
 
 class KPathCoverageGoalSpec extends TestSpecification with SharedModelAssembler {
 
@@ -14,7 +15,7 @@ class KPathCoverageGoalSpec extends TestSpecification with SharedModelAssembler 
       'start := 'expr/10,
       'expr := "a" | 'expr/20 -- "+" -- 'expr/30
     )
-    val grammar = modelAssembler.assemble(g.productions)
+    val grammar = assemble(g)
     val random = new Random(42)
 
     val goal = new KPathCoverageGoal(k = 4)(grammar, random, new Reachability(grammar))
@@ -28,7 +29,7 @@ class KPathCoverageGoalSpec extends TestSpecification with SharedModelAssembler 
       'A := "a" | 'A/42
     )
 
-    val grammar = modelAssembler.assemble(g.productions)
+    val grammar = assemble(g)
     val goal = new KPathCoverageGoal(k = 5)(grammar, new Random(42), new Reachability(grammar))
 
     goal.targets should not be empty
@@ -40,7 +41,7 @@ class KPathCoverageGoalSpec extends TestSpecification with SharedModelAssembler 
       'A := "a"/2
     )
 
-    val grammar = modelAssembler.assemble(g.productions)
+    val grammar = assemble(g)
     val reach = new Reachability(grammar)
     val goal = new KPathCoverageGoal(k = 1)(grammar, new Random(42), reach)
 

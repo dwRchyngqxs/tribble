@@ -25,6 +25,7 @@ object Main {
         new InlineGrammarTask,
         new ExtractAlternationsTask,
         new CacheGrammarTask,
+        // new MutateGrammarTask
       ).foreach(_.execute())
   }
 

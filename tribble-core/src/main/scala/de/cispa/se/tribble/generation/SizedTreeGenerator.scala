@@ -6,8 +6,8 @@ import scala.util.Random
 
 private[tribble] class SizedTreeGenerator(maxRepetitions: Int, random: Random, shortestTreeGenerator: ShortestTreeGenerator, requestedSize: Int, heuristic: Heuristic) extends TreeGenerator {
 
-  private def childSlots(node: DNode)(implicit grammar: GrammarRepr): Seq[Slot] = node.decl match {
-      case r: Reference => Slot(grammar(r), 0, node) :: Nil
+  private def childSlots(node: DNode)(implicit rules: Map[NonTerminal, DerivationRule]): Seq[Slot] = node.decl match {
+      case r: Reference => Slot(rules(r.name), 0, node) :: Nil
       case Concatenation(elements, _) => elements.zipWithIndex.map { case (e, i) => Slot(e, i, node) }
       case Alternation(alternatives, _) =>
         // try to choose the most slot-rich alternative
@@ -22,7 +22,7 @@ private[tribble] class SizedTreeGenerator(maxRepetitions: Int, random: Random, s
     }
 
   // Based on the PTC2 Algorithm by Sean Luke
-  private[tribble] def gen(root: DNode)(implicit grammar: GrammarRepr): DTree = {
+  private[tribble] def gen(root: DNode)(implicit rules: Map[NonTerminal, DerivationRule]): DTree = {
     heuristic.startedTree()
     val Q = mutable.ListBuffer[Slot]()
     var c = 1
@@ -47,10 +47,26 @@ private[tribble] class SizedTreeGenerator(maxRepetitions: Int, random: Random, s
       child dfs {n => heuristic.createdNode(n) }
     }
     heuristic.finishedTree(root)
-    root
+    normalizeTree(root)
   }
 
-  override private[tribble] def gen(decl: DerivationRule, parent: Option[DNode], currentDepth : Int)(implicit grammar: GrammarRepr): DTree = decl match {
+  private def normalizeTree(tree: DTree): DTree = tree match {
+    case DNode(q: Quantification, parent, children) => {
+      val root = DNode(q, parent)
+      var node = root
+      for ((_, DNode(decl, _, sc)) <- children) {
+        val child = DNode(q, Some(node))
+        node.children(0) = normalizeTree(DNode(decl, Some(node), sc))
+        node.children(1) = child
+        node = child
+      }
+      root
+    }
+    case DNode(decl, parent, children) => DNode(decl, parent, children.transform{(_, x) => normalizeTree(x)})
+    case _ => tree
+  }
+
+  override private[tribble] def gen(decl: DerivationRule, parent: Option[DNode], currentDepth : Int)(implicit rules: Map[NonTerminal, DerivationRule]): DTree = decl match {
     case t: TerminalRule => shortestTreeGenerator.gen(t, parent, currentDepth)
     case _ => gen(DNode(decl, parent))
   }

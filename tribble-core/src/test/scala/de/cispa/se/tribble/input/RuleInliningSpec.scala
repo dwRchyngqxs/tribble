@@ -11,7 +11,7 @@ class RuleInliningSpec extends TestSpecification with SharedModelAssembler {
       'B := "b" ~ 'C,
       'C := "c"
     )
-    val grammar = modelAssembler.assemble(g.productions)
+    val grammar = assemble(g)
     val inlinedOnce = new RuleInlining(1).process(grammar)
     inlinedOnce.rules should have size 2
 
@@ -24,7 +24,7 @@ class RuleInliningSpec extends TestSpecification with SharedModelAssembler {
       'S := 'A,
       'A := "" | "a" ~ 'A
     )
-    val grammar = modelAssembler.assemble(g.productions)
+    val grammar = assemble(g)
     for (repetitions <- 1 to 7) {
       val inlining = new RuleInlining(repetitions)
       val inlined = inlining.process(grammar)

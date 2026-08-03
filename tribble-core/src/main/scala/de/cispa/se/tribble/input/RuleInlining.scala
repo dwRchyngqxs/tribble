@@ -58,7 +58,7 @@ class RuleInlining(private val inlineLevels: Int) extends AssemblyPhase {
     // inline references
     val inlinedRules = grammar.rules.mapValues(inlineRule(_)(grammar)).view.force
     // filter out unused declarations
-    GrammarRepr(grammar.start, filterUsedReferences(inlinedRules, grammar.start))
+    GrammarRepr(grammar.start, grammar.ignore, filterUsedReferences(inlinedRules, Set(grammar.start, grammar.ignore)))
   }
 
   private def inlineRule(rule: DerivationRule)(implicit grammar: GrammarRepr): DerivationRule = rule match {
@@ -69,11 +69,11 @@ class RuleInlining(private val inlineLevels: Int) extends AssemblyPhase {
     case rule: TerminalRule => rule
   }
 
-  private def filterUsedReferences(rules: Map[NonTerminal, DerivationRule], startSymbol: NonTerminal): Map[NonTerminal, DerivationRule] = {
+  private def filterUsedReferences(rules: Map[NonTerminal, DerivationRule], required: Set[NonTerminal]): Map[NonTerminal, DerivationRule] = {
     var fixpoint = false
     var filteredRules = rules
     do {
-      val usedReferences = Set(startSymbol) ++ filteredRules.values.flatMap(_.toStream.flatMap { case r: Reference => Some(r) case _ => None }).map(_.name)
+      val usedReferences = required ++ filteredRules.values.flatMap(_.toStream.flatMap { case r: Reference => Some(r) case _ => None }).map(_.name)
       val newFilteredRules = filteredRules.filterKeys(usedReferences)
       if (newFilteredRules.keySet == filteredRules.keySet)
         fixpoint = true
