@@ -235,7 +235,7 @@ SIMPLE_IDENTIFIER    : [a-zA-Z_] [a-zA-Z0-9_$]*;
 STRING               : '"' ( ASCII_NO_NEWLINE_QUOTE_BACKSLASH | ESC_SPECIAL_CHAR)* '"';
 SYSTEM_TF_IDENTIFIER : '$' [a-zA-Z0-9_$] [a-zA-Z0-9_$]*;
 UNSIGNED_NUMBER      : [0-9] [0-9_]*;
-UNSIGNED_NUMBER      : [1-9] [0-9_]*;
+SIZE                 : [1-9] [0-9_]*;
 WHITE_SPACE          : [ \t\r\n]+ -> channel(HIDDEN);
 
 mode BINARY_NUMBER_MODE;
