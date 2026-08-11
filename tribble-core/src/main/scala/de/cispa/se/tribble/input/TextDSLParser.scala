@@ -18,7 +18,9 @@ private[tribble] object TextDSLParser extends InputGrammarParser {
     case s => s
   }
 
-  private def regex[_: P]: P[Regex] = ("/" ~~/ !"/" ~~/ (regexEscape | CharsWhile(!"/\\".contains(_)).!).repX ~~/ "/").map(_.mkString).map(Regex(_))
+  private def escapedUnicode[_: P]: P[String] = "\\u" ~~ CharIn("0-9a-fA-F").rep(4).!.map("\\" + Integer.parseInt(_, 16).toChar.toString)
+
+  private def regex[_: P]: P[Regex] = ("/" ~~ !"/" ~~/ (escapedUnicode | regexEscape | CharsWhile(!"/\\".contains(_)).!).repX ~~/ "/").map(_.mkString).map(Regex(_))
 
   private def reference[_: P]: P[Reference] = CharsWhile((('A' to 'Z') ++ ('a' to 'z') ++ ('0' to '9') ++ "_").contains(_)).!.map(Reference(_))
 

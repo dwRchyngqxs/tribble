@@ -1,4 +1,5 @@
-TODO: standalone build
+TODO HERE: try generating outputs and checking grammars are ok
+build on tiamat (gradlew assemble)
 
 Test k-path through path quantification changes (print k-path?)
 

@@ -22,51 +22,29 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-// $antlr-format alignTrailingComments true, columnLimit 150, minEmptyLines 1, maxEmptyLinesToKeep 1, reflowComments false, useTab false
-// $antlr-format allowShortRulesOnASingleLine false, allowShortBlocksOnASingleLine true, alignSemicolons hanging, alignColons hanging
-
-parser grammar VerilogParser;
-
-options {
-    tokenVocab = VerilogLexer;
-}
-
 // A.1.1 Library source text
-library_text
-    : library_description* EOF
-    ;
+// library_text: library_description* EOF;
 
-library_description
-    : library_declaration
-    | include_statement
-    | config_declaration
-    ;
+// library_description: library_declaration | include_statement | config_declaration;
 
-library_declaration
-    : 'library' library_identifier file_path_spec (',' file_path_spec)* library_incdir? ';'
-    ;
+// library_declaration: 'library' library_identifier file_path_spec (',' file_path_spec)* library_incdir? ';';
 
-library_incdir
-    : '-incdir' file_path_spec (',' file_path_spec)*
-    ;
+// library_incdir: '-incdir' file_path_spec (',' file_path_spec)*;
 
-include_statement
-    : 'include' file_path_spec ';'
-    ;
+// include_statement: 'include' file_path_spec ';';
 
-file_path_spec
-    : FILE_PATH_SPEC
-    ;
+// file_path_spec: FILE_PATH_SPEC;
 
 // A.1.2 Verilog source text
 source_text
-    : description* EOF
+    : description*
     ;
 
 description
     : module_declaration
     | udp_declaration
     | config_declaration
+    | compiler_directive WHITE_SPACE
     ;
 
 module_declaration
@@ -1536,20 +1514,51 @@ constant_base_expression
     ;
 
 constant_expression
-    : constant_primary
-    | unary_operator attribute_instance* constant_primary
-    | constant_expression '**' attribute_instance* constant_expression
-    | constant_expression ('*' | '/' | '%') attribute_instance* constant_expression
-    | constant_expression ( '+' | '-') attribute_instance* constant_expression
-    | constant_expression ('>>' | '<<' | '>>>' | '<<<') attribute_instance* constant_expression
-    | constant_expression ('<' | '<=' | '>' | '>=') attribute_instance* constant_expression
-    | constant_expression ('==' | '!=' | '===' | '!==') attribute_instance* constant_expression
-    | constant_expression '&' attribute_instance* constant_expression
-    | constant_expression ('^' | '^~' | '~^') attribute_instance* constant_expression
-    | constant_expression '|' attribute_instance* constant_expression
-    | constant_expression '&&' attribute_instance* constant_expression
-    | constant_expression '||' attribute_instance* constant_expression
-    | <assoc = right> constant_expression '?' attribute_instance* constant_expression ':' constant_expression
+    : constant_conditional_expression ('?' attribute_instance* constant_expression ':' constant_expression)?
+    ;
+
+constant_conditional_expression
+    : (constant_conditional_expression '||' attribute_instance*)? constant_disjunctive_expression
+    ;
+
+constant_disjunctive_expression
+    : (constant_disjunctive_expression '&&' attribute_instance*)? constant_conjunctive_expression
+    ;
+
+constant_conjunctive_expression
+    : (constant_conjunctive_expression '|' attribute_instance*)? constant_or_expression
+    ;
+
+constant_or_expression
+    : (constant_or_expression ('^' | '^~' | '~^') attribute_instance*)? constant_xor_expression
+    ;
+
+constant_xor_expression
+    : (constant_xor_expression '&' attribute_instance*)? constant_and_expression
+    ;
+
+constant_and_expression
+    : (constant_and_expression ('==' | '!=' | '===' | '!==') attribute_instance*)? constant_eq_expression
+    ;
+
+constant_eq_expression
+    : (constant_eq_expression ('<' | '<=' | '>' | '>=') attribute_instance*)? constant_cmp_expression
+    ;
+
+constant_cmp_expression
+    : (constant_cmp_expression ('>>' | '<<' | '>>>' | '<<<') attribute_instance*)? constant_shift_expression
+    ;
+
+constant_shift_expression
+    : (constant_shift_expression ('+' | '-') attribute_instance*)? constant_additive_expression
+    ;
+
+constant_additive_expression
+    : (constant_additive_expression ('*' | '/' | '%') attribute_instance*)? constant_multiplicative_expression
+    ;
+
+constant_multiplicative_expression
+    : (constant_multiplicative_expression '**' attribute_instance*)? (unary_operator attribute_instance*)? constant_primary
     ;
 
 constant_mintypmax_expression
@@ -1568,20 +1577,51 @@ dimension_constant_expression
     ;
 
 expression
-    : primary
-    | unary_operator attribute_instance* primary
-    | expression '**' attribute_instance* expression
-    | expression ( '*' | '/' | '%') attribute_instance* expression
-    | expression ( '+' | '-') attribute_instance* expression
-    | expression ( '>>' | '<<' | '>>>' | '<<<') attribute_instance* expression
-    | expression ( '<' | '<=' | '>' | '>=') attribute_instance* expression
-    | expression ( '==' | '!=' | '===' | '!==') attribute_instance* expression
-    | expression '&' attribute_instance* expression
-    | expression ( '^' | '^~' | '~^') attribute_instance* expression
-    | expression '|' attribute_instance* expression
-    | expression '&&' attribute_instance* expression
-    | expression '||' attribute_instance* expression
-    | <assoc = right> expression '?' attribute_instance* expression ':' expression
+    : conditional_expression ('?' attribute_instance* expression ':' expression)?
+    ;
+
+conditional_expression
+    : (conditional_expression '||' attribute_instance*)? disjunctive_expression
+    ;
+
+disjunctive_expression
+    : (disjunctive_expression '&&' attribute_instance*)? conjunctive_expression
+    ;
+
+conjunctive_expression
+    : (conjunctive_expression '|' attribute_instance*)? or_expression
+    ;
+
+or_expression
+    : (or_expression ('^' | '^~' | '~^') attribute_instance*)? xor_expression
+    ;
+
+xor_expression
+    : (xor_expression '&' attribute_instance*)? and_expression
+    ;
+
+and_expression
+    : (and_expression ('==' | '!=' | '===' | '!==') attribute_instance*)? eq_expression
+    ;
+
+eq_expression
+    : (eq_expression ('<' | '<=' | '>' | '>=') attribute_instance*)? cmp_expression
+    ;
+
+cmp_expression
+    : (cmp_expression ('>>' | '<<' | '>>>' | '<<<') attribute_instance*)? shift_expression
+    ;
+
+shift_expression
+    : (shift_expression ('+' | '-') attribute_instance*)? additive_expression
+    ;
+
+additive_expression
+    : (additive_expression ('*' | '/' | '%') attribute_instance*)? multiplicative_expression
+    ;
+
+multiplicative_expression
+    : (multiplicative_expression '**' attribute_instance*)? (unary_operator attribute_instance*)? primary
     ;
 
 lsb_constant_expression
@@ -1593,15 +1633,31 @@ mintypmax_expression
     ;
 
 module_path_expression
-    : module_path_primary
-    | unary_module_path_operator attribute_instance* module_path_primary
-    | module_path_expression ('==' | '!=') attribute_instance* module_path_expression
-    | module_path_expression '&' attribute_instance* module_path_expression
-    | module_path_expression ('^' | '^~' | '~^') attribute_instance* module_path_expression
-    | module_path_expression '|' attribute_instance* module_path_expression
-    | module_path_expression '&&' attribute_instance* module_path_expression
-    | module_path_expression '||' attribute_instance* module_path_expression
-    | <assoc = right> module_path_expression '?' attribute_instance* module_path_expression ':' module_path_expression
+    : module_path_conditional_expression ('?' attribute_instance* module_path_expression ':' module_path_expression)?
+    ;
+
+module_path_conditional_expression
+    : (module_path_conditional_expression '||' attribute_instance*)? module_path_disjunctive_expression
+    ;
+
+module_path_disjunctive_expression
+    : (module_path_disjunctive_expression '&&' attribute_instance*)? module_path_conjunctive_expression
+    ;
+
+module_path_conjunctive_expression
+    : (module_path_conjunctive_expression '|' attribute_instance*)? module_path_or_expression
+    ;
+
+module_path_or_expression
+    : (module_path_or_expression ('^' | '^~' | '~^') attribute_instance*)? module_path_xor_expression
+    ;
+
+module_path_xor_expression
+    : (module_path_xor_expression '&' attribute_instance*)? module_path_and_expression
+    ;
+
+module_path_and_expression
+    : (module_path_and_expression ('==' | '!=') attribute_instance*)? (unary_module_path_operator attribute_instance*)? module_path_primary
     ;
 
 module_path_mintypmax_expression
@@ -1626,7 +1682,7 @@ width_constant_expression
 // A.8.4 Primaries
 constant_primary
     : number
-    | identifier ( '[' constant_range_expression ']')?
+    | identifier ('[' constant_range_expression ']')?
     | constant_concatenation
     | constant_multiple_concatenation
     | constant_function_call
@@ -1797,7 +1853,7 @@ string_
 
 // A.9.1 Attributes
 attribute_instance
-    : '(' '*' attr_spec (',' attr_spec)* '*' ')'
+    : '(*' attr_spec (',' attr_spec)* '*)'
     ;
 
 attr_spec

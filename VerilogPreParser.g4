@@ -22,157 +22,112 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-// $antlr-format alignTrailingComments true, columnLimit 150, minEmptyLines 1, maxEmptyLinesToKeep 1, reflowComments false, useTab false
-// $antlr-format allowShortRulesOnASingleLine false, allowShortBlocksOnASingleLine true, alignSemicolons hanging, alignColons hanging
-
-parser grammar VerilogPreParser;
-
-options {
-    tokenVocab = VerilogLexer;
-}
-
-source_text
-    : compiler_directive*
-    ;
+ignore: (' ' | '\t' | '\n' | '\f' | BLOCK_COMMENT | LINE_COMMENT | anywhere_compiler_directive WHITE_SPACE)+;
 
 compiler_directive
-    : begin_keywords_directive
-    | celldefine_directive
-    | default_nettype_directive
-    | end_keywords_directive
-    | endcelldefine_directive
-    | ifdef_directive
-    | ifndef_directive
-    | include_directive
-    | line_directive
-    | nounconnected_drive_directive
-    | pragma_directive
-    | resetall_directive
-    | text_macro_definition
-    | text_macro_usage
-    | timescale_directive
+    : resetall_directive
     | unconnected_drive_directive
+    | nounconnected_drive_directive
+    | default_nettype_directive
+    | begin_keywords_directive
+    | end_keywords_directive
+    | timescale_directive
+    ;
+
+anywhere_compiler_directive
+    : celldefine_directive
+    | endcelldefine_directive
+//    | text_macro_definition
     | undef_directive
+//    | ifdef_directive
+//    | ifndef_directive
+//    | include_directive
+    | line_directive
+    | pragma_directive
+//    | text_macro_usage
     ;
 
 begin_keywords_directive
-    : GA BEGIN_KEYWORDS_DIRECTIVE DQ version_specifier DQ
+    : '`begin_keywords' WHITE_SPACE version_specifier
     ;
 
 celldefine_directive
-    : GA CELLDEFINE_DIRECTIVE
+    : '`celldefine'
     ;
 
 default_nettype_directive
-    : GA DEFAULT_NETTYPE_DIRECTIVE default_nettype_value
+    : '`default_nettype' WHITE_SPACE default_nettype_value
     ;
 
 default_nettype_value
     : DEFAULT_NETTYPE_VALUE
     ;
 
-else_directive
-    : GA ELSE_DIRECTIVE group_of_lines
-    ;
-
-elsif_directive
-    : GA ELSIF_DIRECTIVE macro_identifier group_of_lines
-    ;
+// else_directive: '`else' group_of_lines;
+// elsif_directive: '`elsif' macro_identifier group_of_lines;
 
 end_keywords_directive
-    : GA END_KEYWORDS_DIRECTIVE
+    : '`end_keywords'
     ;
 
 endcelldefine_directive
-    : GA ENDCELLDEFINE_DIRECTIVE
+    : '`endcelldefine'
     ;
 
-endif_directive
-    : GA ENDIF_DIRECTIVE
-    ;
+// endif_directive: '`endif';
 
 filename
-    : FILENAME
+    : /\"([ !#-[\]-~]|\\[ -~])+\"/
     ;
 
-group_of_lines
-    : (source_text_ | compiler_directive)*
-    ;
+// group_of_lines: (source_text_ | compiler_directive)*;
 
-identifier
-    : SIMPLE_IDENTIFIER
-    ;
+// ifdef_directive: '`ifdef' macro_identifier group_of_lines elsif_directive* else_directive? endif_directive;
 
-ifdef_directive
-    : GA IFDEF_DIRECTIVE macro_identifier group_of_lines elsif_directive* else_directive? endif_directive
-    ;
+// ifndef_directive: '`ifndef' macro_identifier group_of_lines elsif_directive* else_directive? endif_directive;
 
-ifndef_directive
-    : GA IFNDEF_DIRECTIVE macro_identifier group_of_lines elsif_directive* else_directive? endif_directive
-    ;
-
-include_directive
-    : GA INCLUDE_DIRECTIVE DQ filename DQ
-    ;
+// include_directive: '`include' filename;
 
 level
-    : UNSIGNED_NUMBER
+    : '0'
+    | '1'
+    | '2'
     ;
 
 line_directive
-    : GA LINE_DIRECTIVE number DQ filename DQ level
+    : '\n`line' WHITE_SPACE UNSIGNED_NUMBER WHITE_SPACE filename WHITE_SPACE level '\n'
     ;
 
-macro_delimiter
-    : MACRO_DELIMITER
-    ;
+// macro_delimiter: MACRO_DELIMITER;
 
-macro_esc_newline
-    : MACRO_ESC_NEWLINE
-    ;
+// macro_esc_newline: MACRO_ESC_NEWLINE;
 
-macro_esc_quote
-    : MACRO_ESC_QUOTE
-    ;
+// macro_esc_quote: MACRO_ESC_QUOTE;
 
 macro_identifier
     : MACRO_IDENTIFIER
     ;
 
-macro_name
-    : MACRO_NAME
-    ;
+// macro_name: MACRO_NAME;
 
-macro_quote
-    : MACRO_QUOTE
-    ;
+// macro_quote: MACRO_QUOTE;
 
-macro_text
-    : (macro_text_ | macro_delimiter | macro_esc_newline | macro_esc_quote | macro_quote | string_)*
-    ;
+// macro_text: (macro_text_ | macro_delimiter | macro_esc_newline | macro_esc_quote | macro_quote | string_)*;
 
-macro_text_
-    : MACRO_TEXT
-    ;
+// macro_text_: MACRO_TEXT;
 
-macro_usage
-    : MACRO_USAGE
-    ;
+// macro_usage: MACRO_USAGE;
 
 nounconnected_drive_directive
-    : GA NOUNCONNECTED_DRIVE_DIRECTIVE
-    ;
-
-number
-    : UNSIGNED_NUMBER
+    : '`nounconnected_drive'
     ;
 
 pragma_directive
-    : GA PRAGMA_DIRECTIVE pragma_name (pragma_expression ( CO pragma_expression)*)?
+    : '`pragma' WHITE_SPACE pragma_name (WHITE_SPACE pragma_expression (CO WHITE_SPACE pragma_expression)*)?
     ;
 
 pragma_expression
-    : (pragma_keyword EQ)? pragma_value
+    : (pragma_keyword WHITE_SPACE EQ WHITE_SPACE)? pragma_value
     ;
 
 pragma_keyword
@@ -184,46 +139,36 @@ pragma_name
     ;
 
 pragma_value
-    : LP pragma_expression (CO pragma_expression)* RP
-    | number
-    | string_
-    | identifier
+    : LP pragma_expression (CO WHITE_SPACE pragma_expression)* RP
+    | unsigned_number
+    | STRING
+    | SIMPLE_IDENTIFIER
     ;
 
 resetall_directive
-    : GA RESETALL_DIRECTIVE
+    : '`resetall'
     ;
 
-source_text_
-    : SOURCE_TEXT
-    ;
+// source_text_: SOURCE_TEXT;
 
-string_
-    : STRING
-    ;
+// text_macro_definition: '`define' macro_name macro_text;
 
-text_macro_definition
-    : GA DEFINE_DIRECTIVE macro_name macro_text
-    ;
-
-text_macro_usage
-    : GA macro_usage
-    ;
+// text_macro_usage: '`' macro_usage;
 
 time_precision
-    : TIME_VALUE TIME_UNIT
+    : TIME_VALUE WHITE_SPACE TIME_UNIT
     ;
 
 time_unit
-    : TIME_VALUE TIME_UNIT
+    : TIME_VALUE WHITE_SPACE TIME_UNIT
     ;
 
 timescale_directive
-    : GA TIMESCALE_DIRECTIVE time_unit SL time_precision
+    : '`timescale' WHITE_SPACE time_unit WHITE_SPACE SL WHITE_SPACE time_precision
     ;
 
 unconnected_drive_directive
-    : GA UNCONNECTED_DRIVE_DIRECTIVE unconnected_drive_value
+    : '`unconnected_drive' WHITE_SPACE unconnected_drive_value
     ;
 
 unconnected_drive_value
@@ -231,7 +176,7 @@ unconnected_drive_value
     ;
 
 undef_directive
-    : GA UNDEF_DIRECTIVE macro_identifier
+    : '`undef' WHITE_SPACE macro_identifier
     ;
 
 version_specifier
