@@ -1,6 +1,3 @@
-TODO HERE: try generating outputs and checking grammars are ok
-build on tiamat (gradlew assemble)
-
 Test k-path through path quantification changes (print k-path?)
 
 Allow multiple start rules (start is then all unused rules instead of a single one) (put connectedness check behind a flag)

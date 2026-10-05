@@ -120,7 +120,7 @@ trait TreeOutputModule { self: Command =>
   def shortestTreeGenerator: ShortestTreeGenerator
 
   var maxRepetitions: Int = opt[Int](default = 10, description = "Maximum number of repetitions of elements (override quantifications). Default 10")
-  var maxDepth: Int = opt[Int](description =
+  var maxDepth: Int = opt[Int](default = 1, description =
     "When randomly generating subtrees, ignore optional elements after this depth.")
   var cutoffDepth: Int = opt[Int](default = Int.MaxValue, description =
     "When randomly generating subtrees, switch over to shortest derivation after this depth.")
