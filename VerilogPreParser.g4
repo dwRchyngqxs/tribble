@@ -22,71 +22,40 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-ignore: (' ' | '\t' | '\n' | '\f' | BLOCK_COMMENT | LINE_COMMENT | anywhere_compiler_directive WHITE_SPACE)+;
+// Expressed this way so that comments and compiler directives are less likely
+ignore: (WHITE_SPACE | ' ' | '\t' | '\n' | '\f' | BLOCK_COMMENT | LINE_COMMENT | anywhere_compiler_directive WHITE_SPACE)+;
 
 compiler_directive
-    : resetall_directive
-    | unconnected_drive_directive
-    | nounconnected_drive_directive
-    | default_nettype_directive
-    | begin_keywords_directive
-    | end_keywords_directive
-    | timescale_directive
+    : '`resetall'
+    | '`unconnected_drive' WHITE_SPACE UNCONNECTED_DRIVE_VALUE
+    | '`nounconnected_drive'
+    | '`default_nettype' WHITE_SPACE DEFAULT_NETTYPE_VALUE
+    | '`begin_keywords' WHITE_SPACE VERSION_SPECIFIER
+    | '`end_keywords'
+    | '`timescale' WHITE_SPACE time_unit WHITE_SPACE '/' WHITE_SPACE time_precision
     ;
 
 anywhere_compiler_directive
-    : celldefine_directive
-    | endcelldefine_directive
-//    | text_macro_definition
-    | undef_directive
-//    | ifdef_directive
-//    | ifndef_directive
-//    | include_directive
-    | line_directive
-    | pragma_directive
-//    | text_macro_usage
-    ;
-
-begin_keywords_directive
-    : '`begin_keywords' WHITE_SPACE version_specifier
-    ;
-
-celldefine_directive
     : '`celldefine'
+    | '`endcelldefine'
+//    | '`define' MACRO_NAME macro_text; // not tested
+    | '`undef' WHITE_SPACE IDENTIFIER
+//    | '`ifdef' IDENTIFIER group_of_lines elsif_directive* else_directive? endif_directive; // not tested
+//    | '`ifndef' IDENTIFIER group_of_lines elsif_directive* else_directive? endif_directive; // not tested
+//    | '`include' filename; // not tested
+// 19.7: only white space may appear on the same line as the `line directive
+    | '\n`line' WHITE_SPACE UNSIGNED_NUMBER WHITE_SPACE filename WHITE_SPACE level '\n'
+    | '`pragma' WHITE_SPACE SIMPLE_IDENTIFIER (WHITE_SPACE pragma_expression (',' WHITE_SPACE pragma_expression)*)?
+//    | '`' MACRO_USAGE; // not tested
     ;
 
-default_nettype_directive
-    : '`default_nettype' WHITE_SPACE default_nettype_value
-    ;
-
-default_nettype_value
-    : DEFAULT_NETTYPE_VALUE
-    ;
-
-// else_directive: '`else' group_of_lines;
-// elsif_directive: '`elsif' macro_identifier group_of_lines;
-
-end_keywords_directive
-    : '`end_keywords'
-    ;
-
-endcelldefine_directive
-    : '`endcelldefine'
-    ;
-
+// else_directive: '`else' group_of_lines; // not tested
+// elsif_directive: '`elsif' IDENTIFIER group_of_lines; // not tested
 // endif_directive: '`endif';
 
-filename
-    : /\"([ !#-[\]-~]|\\[ -~])+\"/
-    ;
+filename: /\"([ !#-[\]-~]|\\[ -~])+\"/;
 
-// group_of_lines: (source_text_ | compiler_directive)*;
-
-// ifdef_directive: '`ifdef' macro_identifier group_of_lines elsif_directive* else_directive? endif_directive;
-
-// ifndef_directive: '`ifndef' macro_identifier group_of_lines elsif_directive* else_directive? endif_directive;
-
-// include_directive: '`include' filename;
+// group_of_lines: (SOURCE_TEXT | compiler_directive)*; // not tested
 
 level
     : '0'
@@ -94,66 +63,18 @@ level
     | '2'
     ;
 
-line_directive
-    : '\n`line' WHITE_SPACE UNSIGNED_NUMBER WHITE_SPACE filename WHITE_SPACE level '\n'
-    ;
-
-// macro_delimiter: MACRO_DELIMITER;
-
-// macro_esc_newline: MACRO_ESC_NEWLINE;
-
-// macro_esc_quote: MACRO_ESC_QUOTE;
-
-macro_identifier
-    : MACRO_IDENTIFIER
-    ;
-
-// macro_name: MACRO_NAME;
-
-// macro_quote: MACRO_QUOTE;
-
-// macro_text: (macro_text_ | macro_delimiter | macro_esc_newline | macro_esc_quote | macro_quote | string_)*;
-
-// macro_text_: MACRO_TEXT;
-
-// macro_usage: MACRO_USAGE;
-
-nounconnected_drive_directive
-    : '`nounconnected_drive'
-    ;
-
-pragma_directive
-    : '`pragma' WHITE_SPACE pragma_name (WHITE_SPACE pragma_expression (CO WHITE_SPACE pragma_expression)*)?
-    ;
+// macro_text: (MACRO_TEXT | '``' | '\\\n' | '`\\`"' | MACRO_QUOTE | STRING)*; // not tested
 
 pragma_expression
-    : (pragma_keyword WHITE_SPACE EQ WHITE_SPACE)? pragma_value
-    ;
-
-pragma_keyword
-    : SIMPLE_IDENTIFIER
-    ;
-
-pragma_name
-    : SIMPLE_IDENTIFIER
+    : (SIMPLE_IDENTIFIER WHITE_SPACE '=' WHITE_SPACE)? pragma_value
     ;
 
 pragma_value
-    : LP pragma_expression (CO WHITE_SPACE pragma_expression)* RP
-    | unsigned_number
+    : '(' pragma_expression (',' WHITE_SPACE pragma_expression)* ')'
+    | UNSIGNED_NUMBER
     | STRING
     | SIMPLE_IDENTIFIER
     ;
-
-resetall_directive
-    : '`resetall'
-    ;
-
-// source_text_: SOURCE_TEXT;
-
-// text_macro_definition: '`define' macro_name macro_text;
-
-// text_macro_usage: '`' macro_usage;
 
 time_precision
     : TIME_VALUE WHITE_SPACE TIME_UNIT
@@ -161,24 +82,4 @@ time_precision
 
 time_unit
     : TIME_VALUE WHITE_SPACE TIME_UNIT
-    ;
-
-timescale_directive
-    : '`timescale' WHITE_SPACE time_unit WHITE_SPACE SL WHITE_SPACE time_precision
-    ;
-
-unconnected_drive_directive
-    : '`unconnected_drive' WHITE_SPACE unconnected_drive_value
-    ;
-
-unconnected_drive_value
-    : UNCONNECTED_DRIVE_VALUE
-    ;
-
-undef_directive
-    : '`undef' WHITE_SPACE macro_identifier
-    ;
-
-version_specifier
-    : VERSION_SPECIFIER
     ;
