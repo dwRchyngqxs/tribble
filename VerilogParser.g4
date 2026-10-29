@@ -43,7 +43,7 @@ description
     : attribute_instance* module_keyword IDENTIFIER module_parameter_port_list? port_and_module_items 'endmodule'
     | attribute_instance* 'primitive' IDENTIFIER udp_ports udp_body 'endprimitive'
     | config_declaration
-    | compiler_directive WHITE_SPACE
+    | compiler_directive
     ;
 
 port_and_module_items 

@@ -27,12 +27,12 @@ ignore: (WHITE_SPACE | ' ' | '\t' | '\n' | '\f' | BLOCK_COMMENT | LINE_COMMENT |
 
 compiler_directive
     : '`resetall'
-    | '`unconnected_drive' WHITE_SPACE UNCONNECTED_DRIVE_VALUE
+    | '`unconnected_drive' UNCONNECTED_DRIVE_VALUE
     | '`nounconnected_drive'
-    | '`default_nettype' WHITE_SPACE DEFAULT_NETTYPE_VALUE
-    | '`begin_keywords' WHITE_SPACE VERSION_SPECIFIER
+    | '`default_nettype' DEFAULT_NETTYPE_VALUE
+    | '`begin_keywords' VERSION_SPECIFIER
     | '`end_keywords'
-    | '`timescale' WHITE_SPACE time_unit WHITE_SPACE '/' WHITE_SPACE time_precision
+    | '`timescale' time_unit '/' time_precision
     ;
 
 anywhere_compiler_directive
