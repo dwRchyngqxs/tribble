@@ -102,15 +102,19 @@ final case class DNode(decl: DerivationRule, parent: Option[DNode], children: mu
   }
 }
 
-final case class DLeaf(decl: TerminalRule, parent: Option[DNode], value: String) extends DTree {
+sealed trait DLeaf extends DTree {
   override def isLeaf: Boolean = true
-
   override def leaves: Seq[DLeaf] = this :: Nil
+  override def nodes: List[DNode] = Nil
+  override val depth = 0
+  override def dfs[U](f: DTree => U): Unit = f(this)
+}
 
+final case class DTerminal(decl: TerminalRule, parent: Option[DNode], value: String) extends DLeaf {
   override def toString: String = value
 
   override def equals(obj: scala.Any): Boolean = obj match {
-    case DLeaf(d,_,v) => d == decl && v == value
+    case DTerminal(d,_,v) => d == decl && v == value
     case _ => false
   }
 
@@ -122,10 +126,30 @@ final case class DLeaf(decl: TerminalRule, parent: Option[DNode], value: String)
     newParent.foreach(_.children(position) = leaf)
     leaf
   }
+}
 
-  override def nodes: List[DNode] = Nil
+final case class DPushIgnore(decl: LocalIgnore, parent: Option[DNode]) extends DLeaf {
+  override def toString: String = s"${decl.lsep} ^${decl.ignore}"
 
-  override val depth = 0
+  override def equals(obj: scala.Any): Boolean = obj match {
+    case DPushIgnore(d,_) => d == decl
+    case _ => false
+  }
 
-  override def dfs[U](f: DTree => U): Unit = f(this)
+  override def hashCode(): Int = decl.##
+
+  override protected[tribble] def _copy(newParent: Option[DNode]): DTree = copy(parent = newParent)
+}
+
+final case class DPopIgnore(decl: LocalIgnore, parent: Option[DNode]) extends DLeaf {
+  override def toString: String = s"# ${decl.rsep}"
+
+  override def equals(obj: scala.Any): Boolean = obj match {
+    case DPopIgnore(d,_) => d == decl
+    case _ => false
+  }
+
+  override def hashCode(): Int = decl.##
+
+  override protected[tribble] def _copy(newParent: Option[DNode]): DTree = copy(parent = newParent)
 }

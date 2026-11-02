@@ -20,6 +20,7 @@ abstract class RecursiveTreeGenerator(protected val regexGenerator: RegexGenerat
         case a: Alternation => instantiateAlternation(a, parent, currentDepth)
         case c: Concatenation => instantiateConcatenation(c, parent, currentDepth)
         case q: Quantification => instantiateQuantification(q, parent, currentDepth)
+        case li: LocalIgnore => instantiateIgnoreRule(li, parent, currentDepth)
       }
     }
     finishNode(tree)
@@ -53,18 +54,31 @@ abstract class RecursiveTreeGenerator(protected val regexGenerator: RegexGenerat
     node
   }
 
+  protected def instantiateIgnoreRule(li: LocalIgnore, parent: Option[DNode], currentDepth: Int)(implicit rules: Map[NonTerminal, DerivationRule]): DTree = {
+    val node = DNode(li, parent)
+    val push = DPushIgnore(li, Some(node))
+    val pop = DPopIgnore(li, Some(node))
+    prepareNode(node)
+    prepareNode(push)
+    prepareNode(pop)
+    node.children(0) = push
+    node.children(1) = gen(li.subject, Some(node), currentDepth + 1)
+    node.children(2) = pop
+    node
+  }
+
   protected def instantiateAlternation(alternation: Alternation, parent: Option[DNode], currentDepth: Int)(implicit rules: Map[NonTerminal, DerivationRule]): DTree
 
   protected def instantiateQuantification(quantification: Quantification, parent: Option[DNode], currentDepth: Int)(implicit rules: Map[NonTerminal, DerivationRule]): DTree
 
   protected def instantiateLiteral(l: Literal, parent: Option[DNode], currentDepth: Int)(implicit rules: Map[NonTerminal, DerivationRule]): DTree = {
-    val leaf = DLeaf(l, parent, l.value)
+    val leaf = DTerminal(l, parent, l.value)
     prepareNode(leaf)
     leaf
   }
 
   protected def instantiateRegex(r: Regex, parent: Option[DNode], currentDepth: Int)(implicit rules: Map[NonTerminal, DerivationRule]): DTree = {
-    val leaf = DLeaf(r, parent, regexGenerator.generateIntoBuilder(r.automaton, new StringBuilder()).mkString)
+    val leaf = DTerminal(r, parent, regexGenerator.generateIntoBuilder(r.automaton, new StringBuilder()).mkString)
     prepareNode(leaf)
     leaf
   }

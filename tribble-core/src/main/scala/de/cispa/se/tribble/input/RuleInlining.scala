@@ -66,6 +66,7 @@ class RuleInlining(private val inlineLevels: Int) extends AssemblyPhase {
     case Concatenation(elements, id) => Concatenation(elements.map(inlineRule), id)
     case Alternation(alts, id) => Alternation(alts.map(inlineRule), id)
     case Quantification(subject, min, max, id) => Quantification(inlineRule(subject), min, max, id)
+    case LocalIgnore(subject, lsep, ignore, rsep, id) => LocalIgnore(inlineRule(subject), lsep, ignore, rsep, id)
     case rule: TerminalRule => rule
   }
 

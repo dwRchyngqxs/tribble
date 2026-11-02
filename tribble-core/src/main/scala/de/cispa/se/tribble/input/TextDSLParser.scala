@@ -22,17 +22,19 @@ private[tribble] object TextDSLParser extends InputGrammarParser {
 
   private def regex[_: P]: P[Regex] = ("/" ~~ !"/" ~~/ (escapedUnicode | regexEscape | CharsWhile(!"/\\".contains(_)).!).repX ~~/ "/").map(_.mkString).map(Regex(_))
 
-  private def reference[_: P]: P[Reference] = CharsWhile((('A' to 'Z') ++ ('a' to 'z') ++ ('0' to '9') ++ "_").contains(_)).!.map(Reference(_))
+  private def nonterminal[_: P]: P[String] = CharsWhile((('A' to 'Z') ++ ('a' to 'z') ++ ('0' to '9') ++ "_").contains(_)).!
+
+  private def reference[_: P]: P[Reference] = nonterminal.map(Reference(_))
 
   private def num[_: P]: P[Int] = CharsWhileIn("0-9").!.map(_.toInt)
 
-  private def repQuant[_: P]: P[(Int, Int)] = (num ~ &("}")).filter(_ > 1).map(n => (n, n))
+  private def repQuant[_: P]: P[(Int, Int)] = (num ~ "}").filter(_ > 1).map(n => (n, n))
 
-  private def oneQuant[_: P]: P[(Int, Int)] = ("," ~/ num).map(n => (0, n)) | P(num ~ "," ~ &("}")).map(n => (n, Int.MaxValue))
+  private def oneQuant[_: P]: P[(Int, Int)] = ("," ~/ num ~/ "}").map(n => (0, n)) | P(num ~ "," ~ &("}")).map(n => (n, Int.MaxValue))
 
-  private def twoQuant[_: P]: P[(Int, Int)] = (num ~ "," ~/ num).filter { case (min, max) => min <= max && (max != 1 || min != 1) }
+  private def twoQuant[_: P]: P[(Int, Int)] = (num ~ "," ~/ num ~/ "}").filter { case (min, max) => min <= max && (max != 1 || min != 1) }
 
-  private def braceQuant[_: P]: P[(Int, Int)] = "{" ~/ (repQuant | oneQuant | twoQuant) ~/ "}"
+  private def braceQuant[_: P]: P[(Int, Int)] = "{" ~/ (repQuant | oneQuant | twoQuant)
 
   private def kleeneQuant[_: P]: P[(Int, Int)] = P("?").map(_ => (0, 1)) | P("*").map(_ => (0, Int.MaxValue)) | P("+").map(_ => (1, Int.MaxValue))
 
@@ -52,7 +54,12 @@ private[tribble] object TextDSLParser extends InputGrammarParser {
       c
   }
 
-  private def alternation[_: P]: P[DerivationRule] = concatenation.rep(min = 1, sep = "|"./).map(_.distinct).map { case Seq(e) => e case seq => Alternation(seq) }
+  private def ignoreRuleSetter[_: P]: P[DerivationRule] = (concatenation ~/ ("<" ~/ atom.? ~/ "^" ~/ atom.? ~/ "^" ~/ atom.? ~/ ">").?).map{
+    case (subj, None) => subj
+    case (subj, Some((lsep, ignore, rsep))) => LocalIgnore(subj, lsep, ignore, rsep)
+  }
+
+  private def alternation[_: P]: P[DerivationRule] = ignoreRuleSetter.rep(min = 1, sep = "|"./).map(_.distinct).map { case Seq(e) => e case seq => Alternation(seq) }
 
   private def production[_: P]: P[Production] = (reference ~/ ":" ~/ alternation ~/ ";").map { case (Reference(name, _), rhs) => name -> rhs }
 

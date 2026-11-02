@@ -123,7 +123,6 @@ class KPathThroughPath(p: Int, path: List[DerivationRule])(implicit grammar: Gra
     // step 2/2: shuffle the targets
     mutable.Set(random.shuffle(linearTargets).toSeq:_*)
   }
-  print(toString() + ";\n") // TODO: REMOVE after testing
   target = targets.head
 
   private def validPath(p: List[DerivationRule]): Boolean = {

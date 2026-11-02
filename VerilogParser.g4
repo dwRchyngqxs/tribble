@@ -529,8 +529,8 @@ udp_input_declaration
     ;
 
 udp_body
-    : 'table' combinational_entry+ 'endtable'
-    | udp_initial_statement? 'table' sequential_entry+ 'endtable'
+    : 'table' (combinational_entry+ <ignore^opt_ignore^ignore>) 'endtable'
+    | udp_initial_statement? 'table' (sequential_entry+ <ignore^opt_ignore^ignore>) 'endtable'
     ;
 
 combinational_entry
@@ -1152,7 +1152,7 @@ additive_operator
 
 multiplicative_operator
     : '*'
-    | '/'
+    | '/' <ignore^^after_slash_ignore>
     | '%'
     ;
 

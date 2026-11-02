@@ -18,6 +18,7 @@ private[tribble] class SizedTreeGenerator(maxRepetitions: Int, random: Random, s
         val lower = Math.max(1, min)
         val constrainedMax = Math.max(lower, Math.min(max, maxRepetitions))
         Stream.fill(lower + random.nextInt(1 + constrainedMax - lower))(subject).zipWithIndex.map { case (e, i) => Slot(e, i, node) }
+      case LocalIgnore(subject, _, _, _, _) => Slot(subject, 0, node) :: Nil
       case _: TerminalRule => Nil
     }
 
@@ -62,7 +63,16 @@ private[tribble] class SizedTreeGenerator(maxRepetitions: Int, random: Random, s
       }
       root
     }
-    case DNode(decl, parent, children) => DNode(decl, parent, children.transform{(_, x) => normalizeTree(x)})
+    case d@DNode(li: LocalIgnore, parent, children) => {
+      d.children(1) = normalizeTree(d.children(0))
+      d.children(0) = DPushIgnore(li, parent)
+      d.children(2) = DPopIgnore(li, parent)
+      d
+    }
+    case d: DNode => {
+      d.children.transform{(_, x) => normalizeTree(x)}
+      d
+    }
     case _ => tree
   }
 

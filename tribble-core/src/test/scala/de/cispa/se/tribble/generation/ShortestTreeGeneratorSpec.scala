@@ -28,7 +28,7 @@ class ShortestTreeGeneratorSpec extends TestSpecification with SharedModelAssemb
     forAll(choices) { choice =>
       val shortestTreeGenerator = new ShortestTreeGenerator(regexGenerator, random, choice)
       val tree = shortestTreeGenerator.generate(grammar)
-      tree.leaves.map(_.value).toList should contain theSameElementsAs List.fill(choice)("a") :+ "b"
+      tree.leaves.collect{ case t: DTerminal => t.value } should contain theSameElementsAs List.fill(choice)("a") :+ "b"
     }
   }
 
@@ -51,7 +51,7 @@ class ShortestTreeGeneratorSpec extends TestSpecification with SharedModelAssemb
     forAll(choices) { choice =>
       val shortestTreeGenerator = new ShortestTreeGenerator(regexGenerator, random, choice)
       val tree = shortestTreeGenerator.generate(grammar)
-      tree.leaves.map(_.value).toList should contain theSameElementsAs List("a", "b")
+      tree.leaves.collect{ case t: DTerminal => t.value } should contain theSameElementsAs List("a", "b")
     }
   }
 }

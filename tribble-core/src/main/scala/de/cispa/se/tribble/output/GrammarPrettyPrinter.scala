@@ -3,7 +3,7 @@ package output
 
 object Precedence extends Enumeration {
   type Precedence = Value
-  val PAlternation, PConcatenation, PQuantifier, PAtom = Value
+  val PAlternation, PLocalIgnore, PConcatenation, PQuantifier, PAtom = Value
 }
 
 import Precedence._
@@ -72,7 +72,7 @@ object TextDSLPrettyPrinter extends GrammarPrettyPrinter {
       if (prec > PConcatenation) s"($x)" else x
     }
     case Alternation(alts, _) => {
-      val x = alts.map(apply(_, PConcatenation)).mkString(" | ")
+      val x = alts.map(apply(_, PLocalIgnore)).mkString(" | ")
       if (prec > PAlternation) s"($x)" else x
     }
     case Quantification(subject, min, max, _) => {
@@ -83,7 +83,15 @@ object TextDSLPrettyPrinter extends GrammarPrettyPrinter {
         case (1, Int.MaxValue) => "+"
         case _ => s"{$min,$max}"
       }
-      if (prec > PQuantifier) s"($x)$q" else s"$x$q"
+      if (prec > PQuantifier) s"($x$q)" else s"$x$q"
+    }
+    case LocalIgnore(subject, lsep, ignore, rsep, id) => {
+      val ssubj = apply(subject, PConcatenation)
+      val slsep = lsep match { case Some(value) => apply(value, PAtom) case None => "" }
+      val signore = ignore match { case Some(value) => apply(value, PAtom) case None => "" }
+      val srsep = rsep match { case Some(value) => apply(value, PAtom) case None => "" }
+      val x = s"$ssubj <$slsep^$signore^$srsep>"
+      if (prec > PLocalIgnore) s"($x)" else s"$x"
     }
     case Literal(value, _) => {
       val x = value.flatMap {

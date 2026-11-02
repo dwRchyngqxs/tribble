@@ -15,7 +15,8 @@ private[tribble] object ScalaDSLParser extends InputGrammarParser {
   // TODO needed for the js grammar
   //  private def charRange[_:P]: P[Regex] = P("'" ~~ ??? ~ "->" ~ "'")
 
-  private def reference[_: P]: P[Reference] = P("'" ~~ CharsWhileIn("_$a-zA-Z0-9").!.map(Reference(_)))
+  private def nonterminal[_: P]: P[String] = CharsWhileIn("_$a-zA-Z0-9").!
+  private def reference[_: P]: P[Reference] = P("'" ~~ nonterminal.map(Reference(_)))
 
   private def num[_: P]: P[Int] = P(CharsWhileIn("0-9").!.map(_.toInt))
 

@@ -17,6 +17,7 @@ object QuantificationEpsilonization extends AssemblyPhase {
       case a: Alternation => a.copy(a.alternatives.map(epsilonize))
       case Quantification(subject, 0, 1, _) => Alternation(Seq(Literal(""), epsilonize(subject)))
       case Quantification(subject, 0, max, id) => Alternation(Seq(Literal(""), Quantification(epsilonize(subject), 1, max, id)))
+      case li: LocalIgnore => li.copy(epsilonize(li.subject))
       case q: Quantification => q.copy(epsilonize(q.subject))
       case _ => rule
     }

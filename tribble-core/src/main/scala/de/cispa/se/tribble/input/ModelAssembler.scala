@@ -120,6 +120,8 @@ object ShortestDerivationComputation extends AssemblyPhase {
         a.shortestDerivation = incNoOverflow(alternatives.map(resolve).min)
       case q@Quantification(subject, min, _, _) =>
         q.shortestDerivation = if (min == 0) 1 else incNoOverflow(resolve(subject))
+      case li@LocalIgnore(subject, _, _, _, _) =>
+        li.shortestDerivation = incNoOverflow(resolve(subject))
       case _ =>
     }
     rule.shortestDerivation
@@ -186,6 +188,10 @@ object RegexTransformation extends AssemblyPhase {
         val newConc = Concatenation(e)
         newConc.probability = conc.probability
         newConc -> additions.toMap
+      case li@LocalIgnore(subject, _, _, _, _) =>
+        val (s, additions) = expandedRule(subject)
+        val newLI = li.copy(s)
+        newLI -> additions
       case r: Reference => r -> Map.empty
       case l: Literal => l -> Map.empty
       case r: Regex =>

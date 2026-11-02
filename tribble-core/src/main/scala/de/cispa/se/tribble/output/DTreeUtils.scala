@@ -18,7 +18,7 @@ object DTreeUtils {
 
     private[tribble] def _toDot(b: StringBuilder): Unit = {
       tree match {
-        case DLeaf(_, _, value) =>
+        case DTerminal(_, _, value) =>
           b.append(s"""{rank = sink; ${System.identityHashCode(tree)} [shape=box,label="""")
           escapeDot(value, b)
           b.append("\"];}\n")

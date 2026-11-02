@@ -69,6 +69,12 @@ private[tribble] class GoalBasedTreeGenerator(closeOffGenerator: TreeGenerator, 
           }
           root
         }
+        case li@LocalIgnore(subject, _, _, _, _) =>
+          val node = DNode(rule, parent)
+          node.children(0) = DPushIgnore(li, Some(node))
+          node.children(1) = gen(subject, Some(node), currentDepth + 1)
+          node.children(2) = DPopIgnore(li, Some(node))
+          node
         case t: TerminalRule =>
           // we do not use delegateToCloseOff here because we have already called goal.usedDerivation
           closeOffGenerator.gen(t, parent, currentDepth)

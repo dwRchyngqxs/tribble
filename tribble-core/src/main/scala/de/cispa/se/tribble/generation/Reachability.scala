@@ -125,6 +125,7 @@ object Reachability {
         builder.addEdge(q, q.subject)
         if (q.max > 1) builder.addEdge(q, q)
       }
+      case li: LocalIgnore => builder.addEdge(li, li.subject)
       case _: TerminalRule =>
     }
     builder.addVertex(g.root)

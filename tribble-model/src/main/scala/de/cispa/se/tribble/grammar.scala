@@ -83,6 +83,21 @@ final case class Quantification(subject: DerivationRule, min: Int, max: Int, ove
   override def children: Iterable[DerivationRule] = subject :: Nil
 }
 
+@SerialVersionUID(4417486692574470887L)
+final case class LocalIgnore(subject: DerivationRule, lsep: Option[DerivationRule], ignore: Option[DerivationRule], rsep: Option[DerivationRule], override var id: Int = DEFAULT_ID) extends DerivationRule {
+  private[tribble] def this(subject: DerivationRule, lsep: Option[DerivationRule], ignore: Option[DerivationRule], rsep: Option[DerivationRule]) = this(subject, lsep, ignore, rsep, DEFAULT_ID)
+  override def toStream: Stream[DerivationRule] = {
+    val s = this #:: subject.toStream
+    val t = if (rsep.isDefined) rsep.get #:: s else s
+    val u = if (ignore.isDefined) ignore.get #:: t else t
+    if (lsep.isDefined) lsep.get #:: u else u
+  }
+  override def toString: String = s"$subject {$lsep^$ignore^$rsep}"
+  override var shortestDerivation: Int = Int.MaxValue
+  override var probability: Double = Double.NaN
+  override def children: Iterable[DerivationRule] = subject :: Nil
+}
+
 @SerialVersionUID(-6968053765170830985L)
 sealed abstract class TerminalRule extends DerivationRule {
   override def toStream: Stream[DerivationRule] = Stream(this)

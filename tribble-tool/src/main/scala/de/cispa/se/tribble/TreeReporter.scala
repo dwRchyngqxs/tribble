@@ -29,9 +29,10 @@ class KPathReporter(coverageReport: File, maxK: Int)(implicit grammar: GrammarRe
         goal.usedDerivation(decl, parent)
       }
       children.values.foreach(updateGoal)
-    case DLeaf(decl, parent, _) =>
+    case DTerminal(decl, parent, _) =>
       for (goal <- goals.valuesIterator)
         goal.usedDerivation(decl, parent)
+    case _ => {}
   }
 
   override def processTree(index: Int, tree: DTree): Unit = {
