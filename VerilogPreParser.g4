@@ -45,20 +45,20 @@ compiler_directive
     | '`default_nettype' DEFAULT_NETTYPE_VALUE
     | '`begin_keywords' VERSION_SPECIFIER
     | '`end_keywords'
-    | '`timescale' time_unit ('/' <ignore^^after_slash_ignore>) time_precision
+    | '`timescale' time_precision ('/' <ignore^^after_slash_ignore>) time_precision
     ;
 
 anywhere_compiler_directive
     : '`celldefine'
     | '`endcelldefine'
 //    | '`define' MACRO_NAME macro_text; // not tested
-    | '`undef' blank+ IDENTIFIER
+    | '`undef' ignore IDENTIFIER
 //    | '`ifdef' IDENTIFIER group_of_lines elsif_directive* else_directive? endif_directive; // not tested
 //    | '`ifndef' IDENTIFIER group_of_lines elsif_directive* else_directive? endif_directive; // not tested
 //    | '`include' filename; // not tested
 // 19.7: only white space may appear on the same line as the `line directive
     | '\n`line' WHITE_SPACE+ UNSIGNED_NUMBER WHITE_SPACE* filename WHITE_SPACE* level '\n'
-    | '`pragma' blank+ SIMPLE_IDENTIFIER (blank+ pragma_expression (',' blank* pragma_expression)*)?
+    | '`pragma' ignore SIMPLE_IDENTIFIER (ignore pragma_expression (',' opt_ignore pragma_expression)*)?
 //    | '`' MACRO_USAGE; // not tested
     ;
 
@@ -79,7 +79,7 @@ level
 // macro_text: (MACRO_TEXT | '``' | '\\\n' | '`\\`"' | MACRO_QUOTE | STRING)*; // not tested
 
 pragma_expression
-    : SIMPLE_IDENTIFIER blank* '=' blank* pragma_value
+    : SIMPLE_IDENTIFIER opt_ignore '=' opt_ignore pragma_value
     | SIMPLE_IDENTIFIER
     | pragma_value
     ;
@@ -92,9 +92,5 @@ pragma_value
     ;
 
 time_precision
-    : TIME_VALUE blank* TIME_UNIT
-    ;
-
-time_unit
-    : TIME_VALUE blank* TIME_UNIT
+    : TIME_VALUE opt_ignore TIME_UNIT
     ;

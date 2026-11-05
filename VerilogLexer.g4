@@ -26,7 +26,7 @@ WHITE_SPACE: /[ \t\n\f]/;
 
 // ` '/*' .* '*/' ` determinized is ` '/*' [^*]* '*'+ ([^*/] [^*]* '*'+)* '/' `
 ASCII_NO_STAR: /[\u0000-\u0029\u002b-\u007f]*/;
-BLOCK_COMMENT: '/*' ASCII_NO_STAR '*'+ (/[\u0000-\u0029\u002b-\u002e\u0030-\u007f]/ ASCII_NO_STAR '*'+) '/';
+BLOCK_COMMENT: '/*' ASCII_NO_STAR '*'+ (/[\u0000-\u0029\u002b-\u002e\u0030-\u007f]/ ASCII_NO_STAR '*'+)* '/';
 LINE_COMMENT: '//' ASCII_NO_NEWLINE '\n';
 
 EXPONENTIAL_NUMBER: /[0-9][0-9_]*(\.[0-9][0-9_]*)?[eE][+\-]?[0-9][0-9_]*/;
