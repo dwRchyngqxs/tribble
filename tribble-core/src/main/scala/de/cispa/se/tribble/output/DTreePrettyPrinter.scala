@@ -15,7 +15,7 @@ class DTreePrettyPrinter(grammar: GrammarRepr, treegen: TreeGenerator) {
         val ignore = stack.head
         if (insertSep && ignore.isDefined)
           sb ++= treegen.generate(grammar.rules, ignore.get).leaves.filter(_.isInstanceOf[DTerminal]).mkString
-        sb ++= lv.toString
+        sb ++= value
         insertSep = true
       }
       case DPushIgnore(decl, parent) => {

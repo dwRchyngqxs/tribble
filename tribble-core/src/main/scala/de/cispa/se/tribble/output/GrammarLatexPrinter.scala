@@ -17,14 +17,16 @@ class GrammarLatexPrinter(private val grammar: GrammarRepr) {
     case Reference(name, _) => s"\\nonterm{$name}"
     case Concatenation(elements, _) => recurseElements(elements, " ")
     case a: Alternation => recurseElements(a.alternatives, " | ")
-    case Quantification(subject, min, max, _) => s"${print(subject)}${
-      (min, max) match {
+    case Quantification(subject, min, max, _) => {
+      val x = (min, max) match {
         case (0, 1) => ".?"
         case (0, Int.MaxValue) => ".rep"
         case (1, Int.MaxValue) => ".rep(1)"
         case _ => s".rep($min,$max)"
       }
-    }"
+      s"${print(subject)}$x"
+    }
+    case LocalIgnore(subject, _, _, _, _) => print(subject)
     case Literal(value, _) =>
       val res = fastparse.internal.Util.literalize(value, unicode = true)
       s"\\term{$res}"

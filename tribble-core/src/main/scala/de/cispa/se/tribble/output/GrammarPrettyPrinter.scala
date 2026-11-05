@@ -15,45 +15,70 @@ trait GrammarPrettyPrinter {
 
 class ScalaDSLPrettyPrinter(printID: Boolean = false, printProb: Boolean = false) extends GrammarPrettyPrinter {
   override def apply(grammar: GrammarRepr): String =
-    "Grammar(\n" + grammar.rules.iterator.map { case (name, rule) => s"'$name := " + apply(rule) }.mkString(",\n") + "\n)\n"
+    "Grammar(\n" + grammar.rules.iterator.map {
+      case (name, rule) => s"'$name := ${apply(rule)}"
+    }.mkString(",\n") + "\n)\n"
 
   override def apply(rule: DerivationRule): String = {
-    var builder = new StringBuilder
+    val sb = new StringBuilder
+    apply(sb, rule)
+    sb.toString
+  }
+
+  def apply(sb: StringBuilder, rule: DerivationRule): Unit = {
     rule match {
-      case Reference(name, id) =>
-        builder ++= s"'$name"
-        appendId(builder, id)
-      case Concatenation(elements, id) =>
-        builder += '('
-        builder ++= elements.map(apply).mkString(" ~ ")
-        builder += ')'
-        appendId(builder, id)
-      case Alternation(alts, id) =>
-        builder += '('
-        builder ++= alts.map(apply).mkString(" | ")
-        builder += ')'
-        appendId(builder, id)
-      case Quantification(subject, min, max, id) =>
-        builder += '('
-        builder ++= apply(subject)
-        builder += ')'
-        builder ++= ((min, max) match {
+      case Reference(name, id) => {
+        sb += '\''
+        sb ++= name
+        appendId(sb, id)
+      }
+      case Concatenation(elements, id) => {
+        sb += '('
+        apply(elements.head)
+        for (e <- elements.tail) {
+          sb ++= " ~ "
+          apply(sb, e)
+        }
+        sb += ')'
+        appendId(sb, id)
+      }
+      case Alternation(alts, id) => {
+        sb += '('
+        apply(alts.head)
+        for (a <- alts.tail) {
+          sb ++= " | "
+          apply(sb, a)
+        }
+        sb += ')'
+        appendId(sb, id)
+      }
+      case Quantification(subject, min, max, id) => {
+        sb += '('
+        apply(sb, subject)
+        sb += ')'
+        sb ++= ((min, max) match {
           case (0, 1) => ".?"
           case (0, Int.MaxValue) => ".rep"
           case (1, Int.MaxValue) => ".rep(1)"
           case _ => s".rep($min,$max)"
         })
-	appendId(builder, id)
-      case Literal(value, id) =>
-        builder ++= fastparse.internal.Util.literalize(value, unicode = true)
-        appendId(builder, id)
-      case Regex(value, id) =>
-        builder ++= fastparse.internal.Util.literalize(value, unicode = true)
-        builder ++= ".regex"
-        appendId(builder, id)
+        appendId(sb, id)
+      }
+      case LocalIgnore(subject, _, _, _, _) => apply(sb, subject)
+      case Literal(value, id) => {
+        sb ++= fastparse.internal.Util.literalize(value, unicode = true)
+        appendId(sb, id)
+      }
+      case Regex(value, id) => {
+        sb ++= fastparse.internal.Util.literalize(value, unicode = true)
+        sb ++= ".regex"
+        appendId(sb, id)
+      }
     }
-    if (printProb && !rule.probability.isNaN) builder ++= s" @@ ${rule.probability}"
-    builder.toString
+    if (printProb && !rule.probability.isNaN) {
+      sb ++= " @@ "
+      sb ++= rule.probability.toString
+    }
   }
 
   private def appendId(builder: StringBuilder, id: Int): Unit = if (printID && id != 0) builder ++= s"/*@$id*/"

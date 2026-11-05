@@ -45,7 +45,7 @@ compiler_directive
     | '`default_nettype' DEFAULT_NETTYPE_VALUE
     | '`begin_keywords' VERSION_SPECIFIER
     | '`end_keywords'
-    | '`timescale' time_precision ('/' <ignore^^after_slash_ignore>) time_precision
+    | '`timescale' TIME_VALUE TIME_UNIT ('/' <ignore^^after_slash_ignore>) TIME_VALUE TIME_UNIT
     ;
 
 anywhere_compiler_directive
@@ -89,8 +89,4 @@ pragma_value
     | UNSIGNED_NUMBER
     | STRING
     | SIMPLE_IDENTIFIER
-    ;
-
-time_precision
-    : TIME_VALUE opt_ignore TIME_UNIT
     ;

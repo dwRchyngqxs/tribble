@@ -129,7 +129,7 @@ final case class DTerminal(decl: TerminalRule, parent: Option[DNode], value: Str
 }
 
 final case class DPushIgnore(decl: LocalIgnore, parent: Option[DNode]) extends DLeaf {
-  override def toString: String = s"${decl.lsep} ^${decl.ignore}"
+  override def toString: String = s"<${decl.lsep}^${decl.ignore}>"
 
   override def equals(obj: scala.Any): Boolean = obj match {
     case DPushIgnore(d,_) => d == decl
@@ -142,7 +142,7 @@ final case class DPushIgnore(decl: LocalIgnore, parent: Option[DNode]) extends D
 }
 
 final case class DPopIgnore(decl: LocalIgnore, parent: Option[DNode]) extends DLeaf {
-  override def toString: String = s"# ${decl.rsep}"
+  override def toString: String = s"#<${decl.rsep}>"
 
   override def equals(obj: scala.Any): Boolean = obj match {
     case DPopIgnore(d,_) => d == decl
